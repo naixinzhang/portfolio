@@ -1,6 +1,16 @@
 import Image from "next/image";
+import { redis, VIEWS_KEY } from "../lib/redis";
+import { Tracker } from "../components/Tracker";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const views = (await redis.get<number>(VIEWS_KEY).catch(() => 0)) ?? 0;
+  return <HomeContent views={views} />;
+}
+
+function HomeContent({ views }: { views: number }) {
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
       <section>
@@ -76,9 +86,10 @@ export default function Home() {
         </p>
         <hr className="mt-5 max-w-2xl border-t border-[var(--border)]" />
         <p className="mt-3 text-xs text-[var(--muted)]">
-          138 page views since Apr 13, 2026
+          {views.toLocaleString()} page views since Apr 13, 2026
         </p>
       </section>
+      <Tracker />
     </div>
   );
 }
