@@ -1,0 +1,189 @@
+---
+title: "Building a Product Eval, Instrumented"
+description: "The build loop for product evals is settled canon: read traces, name the failures, write the rubric, automate the judge, gate the release. What the canon under-specifies is the measurement at each step. This post walks the loop with the series' instruments bolted on — then tells you about the time my own eval said everything was fine."
+date: 2026-07-23
+draft: true
+---
+
+<!--
+  TRANSCRIBED FROM SCREENSHOTS (Documents/blog/post9) — 2026-07-16.
+  Original: Documents/eval study/html/post-09.html on the other laptop.
+  FINALE. Its footer loops "Next" back to Part 1, closing the series circle.
+
+  KNOWN GAPS:
+  1. THE CALIBRATION STUDIO is a live JS demo (Apply isotonic calibration,
+     threshold slider, Resample data; live reliability diagram, decision view,
+     ECE + precision/recall/alarm readouts). CANNOT be static HTML. Marked
+     .eb-sim-placeholder with full captured state.
+-->
+
+<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> The eval-building loop is settled canon — this post bolts a measurement instrument onto every station, including the one nobody checks: whether your scores mean what they say numerically (calibration ≠ discrimination).</p>
+  <p><strong>You should care if:</strong> you're building or maintaining a production eval that gates anything.</p>
+  <p><strong>Do this today:</strong> if any decision uses your score's value (not just its ranking), plot a reliability diagram — good AUROC does not mean trustworthy probabilities.</p>
+</aside>
+
+<h2>The part I won't pretend to invent</h2>
+
+<p>This is the post where the series cashes out. Eight posts of measurement machinery — variance, power, raters, judges, rankings, repetition — and the obvious question: fine, but how do I actually <em>build</em> the eval for my product?</p>
+
+<p>The skeleton of the answer is not mine, and I'm not going to pretend otherwise. Hamel Husain's error-analysis loop — <strong>read your traces, code the failures into a taxonomy, turn the taxonomy into rubrics, automate the stable rubrics with judges, let the validated judges gate releases</strong> — is the settled canon of product-eval practice, and it's settled because it's right. If you haven't read his <a href="https://hamel.dev/blog/posts/evals/">evals essay</a> and the <a href="https://hamel.dev/blog/posts/evals-faq/">FAQ</a>, read them before this. I have nothing to subtract from that loop.</p>
+
+<p>What I have is what the canon under-specifies. Every step of the loop is a <em>measurement act</em>, and the FAQ-level treatment gives you the workflow without the instrument spec: how many traces are enough, when a rubric is reliable enough to hand to strangers, what a judge's agreement number actually licenses, how small a regression your gate can actually see. Those are exactly the questions parts 3–8 built tools for. So this post is what its title says — <strong>Hamel's loop, instrumented</strong>: one pass through the build with the toolbox bolted on at each step, then the failure mode none of the canon covers (a war story of mine about the difference between ranking and probability), and finally the governance layer that keeps the whole assembly trustworthy after you ship it.</p>
+
+<figure class="eb-loop">
+  <svg viewBox="0 0 920 470" class="eb-loop-svg" role="img" aria-label="the canon eval loop: read traces, taxonomy, rubric, judge, gate, and back"><rect x="55" y="95" width="205" height="66" rx="10" fill="var(--background)" stroke="var(--border)" stroke-width="1.3"/><text x="157.5" y="134.0" font-size="17" font-weight="700" text-anchor="middle" fill="var(--foreground)">Read traces</text><rect x="360" y="95" width="205" height="66" rx="10" fill="var(--background)" stroke="var(--border)" stroke-width="1.3"/><text x="462.5" y="134.0" font-size="17" font-weight="700" text-anchor="middle" fill="var(--foreground)">Taxonomy</text><rect x="660" y="95" width="205" height="66" rx="10" fill="var(--background)" stroke="var(--border)" stroke-width="1.3"/><text x="762.5" y="134.0" font-size="17" font-weight="700" text-anchor="middle" fill="var(--foreground)">Rubric</text><rect x="660" y="330" width="205" height="66" rx="10" fill="var(--background)" stroke="var(--border)" stroke-width="1.3"/><text x="762.5" y="369.0" font-size="17" font-weight="700" text-anchor="middle" fill="var(--foreground)">Judge</text><rect x="360" y="330" width="205" height="66" rx="10" fill="var(--background)" stroke="var(--border)" stroke-width="1.3"/><text x="462.5" y="369.0" font-size="17" font-weight="700" text-anchor="middle" fill="var(--foreground)">Gate</text><rect x="58" y="35" width="199" height="26" rx="7" fill="#dbe4f3"/><text x="157.5" y="52" font-size="12.5" text-anchor="middle" fill="#2a3a52">saturation stopping (P4)</text><rect x="352" y="35" width="220" height="26" rx="7" fill="#dbe4f3"/><text x="462.5" y="52" font-size="12.5" text-anchor="middle" fill="#2a3a52">criteria drift — version it</text><rect x="670" y="35" width="184" height="26" rx="7" fill="#dbe4f3"/><text x="762.5" y="52" font-size="12.5" text-anchor="middle" fill="#2a3a52">pilot + agreement (P5)</text><rect x="374" y="409" width="177" height="42" rx="7" fill="#dbe4f3"/><text x="462.5" y="426" font-size="12.5" text-anchor="middle" fill="#2a3a52">powered, paired,</text><text x="462.5" y="443" font-size="12.5" text-anchor="middle" fill="#2a3a52">cluster-aware (P3–P4)</text><rect x="670" y="417" width="184" height="26" rx="7" fill="#dbe4f3"/><text x="762.5" y="434" font-size="12.5" text-anchor="middle" fill="#2a3a52">validate & debias (P6)</text><line x1="157.5" y1="61" x2="157.5" y2="95" stroke="var(--border)" stroke-width="1"/><line x1="462.5" y1="61" x2="462.5" y2="95" stroke="var(--border)" stroke-width="1"/><line x1="762.5" y1="61" x2="762.5" y2="95" stroke="var(--border)" stroke-width="1"/><line x1="462.5" y1="396" x2="462.5" y2="409" stroke="var(--border)" stroke-width="1"/><line x1="762.5" y1="396" x2="762.5" y2="409" stroke="var(--border)" stroke-width="1"/><line x1="260" y1="128.0" x2="356" y2="128.0" stroke="#4a6fa5" stroke-width="1.5"/><path d="M356 128.0 L347.1 133.0 L347.1 123.0 z" fill="#4a6fa5"/><line x1="565" y1="128.0" x2="656" y2="128.0" stroke="#4a6fa5" stroke-width="1.5"/><path d="M656 128.0 L647.1 133.0 L647.1 123.0 z" fill="#4a6fa5"/><line x1="762.5" y1="161" x2="762.5" y2="326" stroke="#4a6fa5" stroke-width="1.5"/><path d="M762.5 326 L757.5 317.1 L767.5 317.1 z" fill="#4a6fa5"/><line x1="660" y1="363.0" x2="569" y2="363.0" stroke="#4a6fa5" stroke-width="1.5"/><path d="M569 363.0 L577.9 358.0 L577.9 368.0 z" fill="#4a6fa5"/><path d="M360 363.0 L150 363.0 L150 167" stroke="#4a6fa5" stroke-width="1.5" fill="none"/><line x1="150" y1="177" x2="150" y2="163" stroke="#4a6fa5" stroke-width="1.5"/><path d="M150 163 L155.0 171.9 L145.0 171.9 z" fill="#4a6fa5"/><text x="138" y="255" font-size="13" fill="var(--muted)" text-anchor="middle" transform="rotate(-90 138 255)">governance &amp; refresh (P9)</text></svg>
+  <p class="eb-caption">The canon loop, with measurement bolted on at every station. The loop is Hamel's; the badges are parts 3–6 of this series, plus the governance pass that keeps the cycle honest.</p>
+</figure>
+
+<h2>Step 1 · Error analysis: read until saturation</h2>
+
+<p><strong>The canon says:</strong> don't start with metrics; start by reading traces. Open-code the failures in your own words, then cluster the notes into a taxonomy. The FAQ's stopping heuristic: keep reading until new failure modes stop appearing — in practice, when a stretch of ~20 fresh traces teaches you nothing new.</p>
+
+<p><strong>What to measure:</strong> that heuristic <em>is</em> a stopping rule, and it's worth seeing it as one — the same logic as <a href="/build/how-many-examples-and-when-can-you-stop">part 4</a>'s sequential tests, applied qualitatively. You are estimating the probability that an unseen failure mode still exists, and every fresh trace that adds nothing is evidence that probability is small. (The rate at which you're still seeing first-time failure modes is itself the estimate — readers who want the formal version can look up species-discovery estimators; the folk rule is a decent approximation of them.) One refinement matters in practice: saturate <em>within each traffic segment you care about</em>, not overall. A failure mode confined to 5% of traffic will not surface quickly in a uniform sample, and "we read 100 traces" means little if all 100 came from the easy pool.</p>
+
+<p>The second measurement rule of this step: a taxonomy category is only finished when it's <strong>operationalizable</strong> — a question a rater can answer about a single trace, with evidence they can point to. "Response is unhelpful" is a sentiment; "response does not address the user's stated constraint" is a rubric item. And expect your categories to move: Shankar et al. documented <strong>criteria drift</strong> — graders discover and revise their own criteria <em>while</em> grading — as a systematic phenomenon, not a personal failing. Plan for revision; version it (step 2).</p>
+
+<h2>Step 2 · The rubric is a multi-item instrument</h2>
+
+<p><strong>The canon says:</strong> turn the taxonomy into rubrics; prefer binary pass/fail per failure mode over Likert scales.</p>
+
+<p><strong>What to measure:</strong> a rubric is a <strong>multi-item measurement instrument</strong> — the exact object psychometrics spent a century learning to build — and it deserves the minimum viable version of that discipline: <strong>pilot it on ~20 items with 2 raters before production.</strong> Not to compute a kappa you can frame; to harvest the disagreements. <a href="/build/humans-are-instruments-rater-ops-is-the-eval">Part 5</a>'s triage applies verbatim: each disagreement is either <em>rubric ambiguity</em> (fix the wording), <em>rater error</em> (fix the training), or <em>genuine item ambiguity</em> (the item is the problem — split it or drop it). Twenty items and two raters will find the worst of all three for the price of an afternoon.</p>
+
+<p>Anchor the scale to <strong>outcomes, not preferences</strong>. Part 5's central story was a rubric whose agreement jumped when the question was re-anchored from "which response do you prefer?" to "would the customer accept this work?" — re-anchoring bought more agreement than any amount of rater training. And the binary-over-Likert advice, which Hamel argues behaviorally, has a measurement-theory reading: every rubric item is a sensor, and a 1–5 scale on which raters can't distinguish a 3 from a 4 is a noisy sensor pretending to be a precise one. Ask five binary questions and sum them; you recover the gradation with far more reliability per item.</p>
+
+<p>Finally: <strong>version the rubric like code.</strong> A wording change is an instrument change, and scores from different instrument versions are different units. You wouldn't silently swap thermometers mid-experiment; don't silently edit the rubric mid-quarter. (What to do when you must: governance, below.)</p>
+
+<h2>Step 3 · The dataset: clusters, coverage, and life without a gold set</h2>
+
+<p><strong>The canon says:</strong> curate eval items from real failures; use synthetic data to fill coverage gaps.</p>
+
+<p><strong>What to measure:</strong> two things at build time, because you can't reconstruct them later. First, <strong>representativeness</strong> — sample against production traffic strata, and record the sampling frame. Second, <strong>clustering keys</strong>: seed prompt, source document, user, conversation, template. <a href="/build/error-bars-applied">Part 3</a>'s lesson was that items sharing a parent are correlated and your confidence intervals must know it; the metadata costs nothing to keep at generation time and is gone forever if you don't.</p>
+
+<p>Then there's the case the textbooks skip: <strong>no gold set exists.</strong> For open-ended product tasks — write the research memo, plan the migration, draft the report — two competent people produce different, both-defensible outputs. That's a property of the work, not a gap in your eval. The pattern I've seen hold up in serious enterprise eval work is <strong>two strictly separated tiers</strong>:</p>
+
+<ol class="eb-series">
+  <li><strong>Trust floors, which gate.</strong> Must-not-violate properties: every claim grounded in the provided sources, nothing unsafe, output contract respected. These are checkable near-deterministically — string-level and retrieval-level checks tuned for a very high true-negative rate — and a violation blocks the release, full stop.</li>
+  <li><strong>Value metrics, which hill-climb.</strong> Usefulness, coverage, depth, insight. These are judge-scored, noisier, and directional: you track them over versions and try to push them up.</li>
+</ol>
+
+<p>The design rule that carries all the weight: <strong>never average the two tiers into one number.</strong> A fabricated citation is not offset by eloquence, and any composite that lets it be offset has smuggled a policy decision into an arithmetic mean (<a href="/build/an-eval-is-a-decision-instrument">part 2</a>'s oldest warning). A related habit worth keeping from the same world: teams often replicate every judge-scored metric a few times and let only the stable ones — run-to-run σ near zero — participate in gating, demoting the noisy ones to diagnostics. That's an improvised reliability analysis, and it's worth doing <em>and</em> worth knowing what it doesn't buy you: σ across reruns measures decoding noise, not sampling error. Part 3 has the full argument; both variances need reporting.</p>
+
+<figure class="eb-tiers">
+  <div class="eb-tiers-row">
+    <div class="eb-tiers-card">
+      <p class="eb-tiers-title">Trust floors &mdash; GATE</p>
+      <svg class="eb-tiers-bar" viewBox="0 0 300 26" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="298" height="24" rx="7" fill="#d6e0f2" stroke="#9fb4dd"/><line x1="60" y1="1" x2="44" y2="25" stroke="#9fb4dd" stroke-width="1"/><line x1="120" y1="1" x2="104" y2="25" stroke="#9fb4dd" stroke-width="1"/><line x1="180" y1="1" x2="164" y2="25" stroke="#9fb4dd" stroke-width="1"/><line x1="240" y1="1" x2="224" y2="25" stroke="#9fb4dd" stroke-width="1"/></svg>
+      <ul class="eb-tiers-checks"><li><span class="eb-tiers-chk"><svg viewBox="0 0 24 24" fill="none" stroke="#3b6fd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12l3 3 5-6"/></svg></span>every claim grounded in sources</li><li><span class="eb-tiers-chk"><svg viewBox="0 0 24 24" fill="none" stroke="#3b6fd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12l3 3 5-6"/></svg></span>nothing unsafe</li><li><span class="eb-tiers-chk"><svg viewBox="0 0 24 24" fill="none" stroke="#3b6fd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12l3 3 5-6"/></svg></span>output contract respected</li></ul>
+      <p class="eb-tiers-verdict">verdict: any failure blocks the release</p>
+    </div>
+    <div class="eb-tiers-card">
+      <p class="eb-tiers-title">Value metrics &mdash; HILL-CLIMB</p>
+      <svg class="eb-tiers-arrow" viewBox="0 0 300 70" aria-hidden="true"><path d="M12 60 C90 56 200 40 278 14" stroke="#3b5b9a" stroke-width="2.4" fill="none"/><path d="M278 14 l-16 -1 l8 12 z" fill="#3b5b9a"/></svg>
+      <ul class="eb-tiers-bullets"><li><span class="eb-tiers-dot"></span>usefulness</li><li><span class="eb-tiers-dot"></span>coverage</li><li><span class="eb-tiers-dot"></span>depth &amp; insight</li></ul>
+      <p class="eb-tiers-verdict">verdict: optimize &mdash; don&rsquo;t gate on these</p>
+    </div>
+  </div>
+  <p class="eb-tiers-warn">never average these two into one number</p>
+  <p class="eb-caption">A gate failure isn&rsquo;t offset by eloquence. Floors block, value metrics climb &mdash; any composite that mixes them has smuggled a policy decision into an arithmetic mean.</p>
+</figure>
+
+<h2>Step 4 · The judge: validate per class, freeze, stress-test, correct</h2>
+
+<p><strong>The canon says:</strong> automate only the persistent failure modes with an LLM judge, and validate the judge against held-out human labels — TPR and TNR, not vibes.</p>
+
+<p><strong>What to measure:</strong> four disciplines, in order. <strong>Validate per class</strong>, because overall agreement is a trap: at a 90% pass rate, a judge that waves everything through scores 90% agreement while catching zero failures — the prevalence paradox from <a href="/build/humans-are-instruments-rater-ops-is-the-eval">part 5</a>. <strong>Freeze the judge</strong> — pin the model version and prompt, and treat any change as a new instrument requiring re-validation. <strong>Stress-test with injected failures</strong>: take passing outputs, plant known violations (a fabricated number, a dropped constraint), and measure the catch rate. This is the sensor test with a known signal, and it's the only honest way to trust a TNR measured on a dataset where failures are rare. Then — the step the canon points at but never performs — <strong>correct the aggregate</strong>. A judge with known error rates gives you a <em>biased</em> pass rate, and the bias is fixable: Rogan–Gladen inverts it in one line, and prediction-powered inference combines a few hundred human labels with many judge labels into an unbiased estimate with honest intervals. Hamel's FAQ says the correction exists; <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">part 6</a> is the recipe, with the widget to build intuition.</p>
+
+<h2>Step 5 · The gate: powered, paired, peek-proof</h2>
+
+<p><strong>The canon says:</strong> run the eval in CI; block releases that regress.</p>
+
+<p><strong>What to measure:</strong> a release gate is a hypothesis test whether or not you admit it, so give it the courtesies of one. <strong>Pair it</strong>: run candidate and incumbent on the same items and test the paired differences (McNemar for binary — <a href="/build/how-many-examples-and-when-can-you-stop">part 4</a>); pairing routinely halves the n you need, and it's free. <strong>Power it for the decision's minimum effect</strong>: decide the smallest regression worth blocking — say three points — and size the eval so the gate can actually see it. A gate that can only detect ten-point swings on an 80-item suite is a placebo with a green checkmark. <strong>Make it sequential-safe</strong>: teams peek — after every batch, on every PR, on every rerun — and repeated testing at a fixed threshold inflates false alarms far past the advertised rate; part 4's always-valid methods exist for precisely this. And <strong>make the intervals cluster-aware</strong> (<a href="/build/error-bars-applied">part 3</a>), because eval items that share a seed template will make a naive gate overconfident in both directions. Last, decide the tie policy <em>before</em> you see scores: when the interval spans zero, does the release ship or wait? That's a product decision, and writing it down beats relitigating it at 6 p.m. on release day.</p>
+
+<h2>Calibration ≠ discrimination: the eval that said my model was great</h2>
+
+<p>Everything above instruments the loop. This section is about the failure mode that walked through all of it untouched, in a system I own.</p>
+
+<p>I maintain a quality-prediction model — small, unglamorous: it looks at a unit of work in an operational pipeline and predicts the probability that it will turn out badly. The eval story was clean. On a deliberately hard generalization split — held-out cohorts, a later time window — it ranked with an <strong>AUROC around 0.75</strong>. For a screening problem, that's genuinely useful signal, honestly measured. The eval looked great, and I said so.</p>
+
+<p>Then I looked at what the score's consumers actually did with it. One consumer <em>ranked</em> — sort the queue, review the top. Fine. Another <em>thresholded</em>: act when the probability crosses τ. And the probabilities, it turned out, were junk. The model emitted almost everything in the bottom half of [0,1] — the vast majority of predictions below 0.5 while the actual positive rate (its base rate) was in the mid-forties percent, the two classes' mean predictions separated by a few hundredths. When I swept for the F1-optimal threshold, it <strong>collapsed toward zero</strong> — operationally indistinguishable from "predict the base rate for everyone." And underneath that, the base rate itself was drifting: one new cohort's positive rate came in at <em>less than half</em> of training's, so a threshold tuned anywhere was miscalibrated somewhere else. The ranking consumers were fine. The threshold consumers were thresholding noise. Same model, same eval — and the AUROC I'd reported was simultaneously true and useless to half its audience.</p>
+
+<figure class="eb-calib">
+  <div class="eb-calib-row">
+    <div class="eb-calib-card">
+      <p class="eb-calib-title">Discrimination: fine</p>
+      <p class="eb-calib-sub">positives outrank negatives &mdash; AUROC 0.75</p>
+      <svg viewBox="0 0 470 210" class="eb-calib-svg" role="img" aria-label="score distribution"><circle cx="127.4" cy="88" r="6" fill="#3b6fd4"/><circle cx="146.8" cy="96" r="6" fill="#3b6fd4"/><circle cx="162.3" cy="88" r="6" fill="#3b6fd4"/><circle cx="173.9" cy="96" r="6" fill="#3b6fd4"/><circle cx="189.4" cy="88" r="6" fill="#3b6fd4"/><circle cx="205.0" cy="96" r="6" fill="#3b6fd4"/><circle cx="236.0" cy="88" r="6" fill="#3b6fd4"/><circle cx="263.2" cy="96" r="6" fill="#3b6fd4"/><circle cx="84.7" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="100.2" cy="132" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="111.8" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="123.5" cy="132" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="135.1" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="150.6" cy="132" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="166.2" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="285.2" cy="92" r="6" fill="#3b6fd4"/><text x="297.2" y="96" font-size="13" fill="var(--muted)">positives</text><circle cx="188.2" cy="128" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><text x="200.2" y="132" font-size="13" fill="var(--muted)">negatives</text><line x1="42" y1="165" x2="430" y2="165" stroke="var(--muted)" stroke-width="1"/><line x1="42" y1="165" x2="42" y2="170" stroke="var(--muted)" stroke-width="1"/><text x="42" y="185" font-size="12" fill="var(--muted)" text-anchor="middle">0</text><line x1="236" y1="165" x2="236" y2="170" stroke="var(--muted)" stroke-width="1"/><text x="236" y="185" font-size="12" fill="var(--muted)" text-anchor="middle">0.5</text><line x1="430" y1="165" x2="430" y2="170" stroke="var(--muted)" stroke-width="1"/><text x="430" y="185" font-size="12" fill="var(--muted)" text-anchor="middle">1</text></svg>
+      <p class="eb-calib-axis">model score</p>
+    </div>
+    <div class="eb-calib-card">
+      <p class="eb-calib-title">Calibration: broken</p>
+      <p class="eb-calib-sub">every prediction sits below 0.5</p>
+      <svg viewBox="0 0 470 210" class="eb-calib-svg" role="img" aria-label="score distribution"><rect x="236" y="20" width="194" height="145" fill="#d64541" opacity="0.07"/><circle cx="135.1" cy="88" r="6" fill="#3b6fd4"/><circle cx="154.5" cy="96" r="6" fill="#3b6fd4"/><circle cx="162.3" cy="88" r="6" fill="#3b6fd4"/><circle cx="173.9" cy="96" r="6" fill="#3b6fd4"/><circle cx="185.6" cy="88" r="6" fill="#3b6fd4"/><circle cx="197.2" cy="96" r="6" fill="#3b6fd4"/><circle cx="208.8" cy="88" r="6" fill="#3b6fd4"/><circle cx="220.5" cy="96" r="6" fill="#3b6fd4"/><circle cx="80.8" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="96.3" cy="132" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="108.0" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="119.6" cy="132" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="135.1" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="146.8" cy="132" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><circle cx="158.4" cy="124" r="6" fill="none" stroke="var(--muted)" stroke-width="1.5"/><line x1="42" y1="165" x2="430" y2="165" stroke="var(--muted)" stroke-width="1"/><line x1="42" y1="165" x2="42" y2="170" stroke="var(--muted)" stroke-width="1"/><text x="42" y="185" font-size="12" fill="var(--muted)" text-anchor="middle">0</text><line x1="236" y1="165" x2="236" y2="170" stroke="var(--muted)" stroke-width="1"/><text x="236" y="185" font-size="12" fill="var(--muted)" text-anchor="middle">0.5</text><line x1="430" y1="165" x2="430" y2="170" stroke="var(--muted)" stroke-width="1"/><text x="430" y="185" font-size="12" fill="var(--muted)" text-anchor="middle">1</text><line x1="236" y1="24" x2="236" y2="165" stroke="#d64541" stroke-width="1.4" stroke-dasharray="5 3"/><text x="246" y="42" font-size="12.5" font-weight="700" fill="#d64541">your threshold &tau; = 0.5</text><text x="246" y="59" font-size="12.5" font-weight="700" fill="#d64541">selects: nobody</text></svg>
+      <p class="eb-calib-axis">model score (probability)</p>
+    </div>
+  </div>
+  <p class="eb-caption">It ranks like a champion and lies about probabilities &mdash; different properties, different checks. Same model, same dots: rank consumers are fine; anyone thresholding is thresholding noise.</p>
+</figure>
+
+<p>These are two independent properties, and the vocabulary matters. <strong>Discrimination</strong>: do positives outrank negatives? (AUROC's question.) <strong>Calibration</strong>: when the model says 0.7, does the event happen 70% of the time? A model can be excellent at one and terrible at the other — Guo et al. showed modern neural networks are routinely like this, discrimination improving while calibration decays. The repair is old, cheap, and satisfying: <strong>post-hoc isotonic regression</strong> — fit a monotone non-decreasing map from raw scores to observed outcome rates on a validation split, check it on a held-out test split, per cohort where the data allows. Because the map is monotone, the ranking — and therefore AUROC — is preserved; only the values move. You grade the fix with a reliability diagram and expected calibration error, before and after. Below: feel it.</p>
+
+<div data-sim="calibration-studio"></div>
+<p>Now the lesson, generalized to LLM evals, because that's why it's in this series. The question to ask of every eval score you publish: <strong>does its consumer use it as a rank or as a value?</strong> If a rank — "pick the better model," "review the worst outputs first" — discrimination is all you need, and parts 3–7 covered its statistics. But the moment a score is consumed as a <em>value</em> — a threshold ("escalate when risk &gt; 0.6"), an SLA ("ship when mean helpfulness ≥ 4.2"), a weighted composite, a dashboard promising a probability — you owe it a calibration check. Judge scores are the worst offenders: a judge's 8/10 is not a probability of anything until you calibrate it against outcomes. Two judges' 8s are not the same 8; this quarter's 8 is not last quarter's. <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">Part 6</a>'s corrections fix the <em>bias in aggregate rates</em>; calibration fixes the <em>meaning of individual values</em> — you need both, and they are not the same repair. The check costs one reliability diagram, and the fix, when the diagram bends, is twenty lines of isotonic regression.</p>
+
+<h2>Governance: the eval is load-bearing now</h2>
+
+<p>An eval that gates releases is not analysis anymore; it's <strong>infrastructure</strong>, and it deserves the operational discipline you'd give any other load-bearing system. Nobody blogs about this layer, but mature organizations converge on the same short list, and every item is stealable:</p>
+
+<ul class="eb-series">
+  <li><strong>Eval design review before build</strong> — the analog of system design review. What decision does this eval feed? What's the minimum effect that decision cares about, and does the planned n resolve it? Who consumes ranks, who consumes values? What does a wrong ship cost versus a wrong block?</li>
+  <li><strong>Versioned rubrics and judges, with changelogs.</strong> A score is only interpretable relative to an instrument version; pin it the way you pin dependencies.</li>
+  <li><strong>A comparability plan for instrument changes.</strong> When the rubric or judge must change, re-score a reference set of past releases with the new instrument and publish the offset — bridge the series, don't silently rewrite history.</li>
+  <li><strong>A named owner for drift.</strong> Datasets age, traffic shifts, providers quietly swap the model behind your judge. An eval without an owner rots on exactly the schedule nobody is watching.</li>
+  <li><strong>Scheduled re-audits of frozen environments.</strong> Freezing your eval set doesn't freeze the world around it: a "hard retrieval" task silently becomes an easy lookup as the live web catches up, and scores rise without the system improving — the worst kind of eval rot, because it reads as progress. Re-audit on a calendar, not on an incident.</li>
+  <li><strong>A scorecard habit.</strong> One line per eval: <em>what decision it feeds, what resolution it has</em> (the minimum detectable effect at current n), <em>when it was last validated</em> against human judgment. Three columns. Most teams cannot fill in any of them from memory, which is the argument for the card.</li>
+</ul>
+
+<p>A word on where the tooling fits, because at this point a reasonable reader is asking which platform does all this for them. The eval platforms — LangSmith, Braintrust, Arize, deepeval, and their cousins — own the <strong>pipes</strong>: trace logging, dataset management, judge runners, regression dashboards. Use one; hand-rolling that plumbing is a poor use of anyone's time. But be clear-eyed about the division of labor: almost nothing in this series ships as a platform feature. No platform runs your power analysis, clusters your standard errors, debiases your judge, or checks your calibration — the measurement discipline is what <em>you</em> pour through their pipes. The one genuinely stats-forward capability worth shopping for is judge–human agreement tracking (LangSmith's Align Evals is the visible example), which is <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">part 6</a>'s first step productized. The rest is still on you — which is, of course, why this series exists.</p>
+
+<p>And one constraint the canon rarely prices in: <strong>cost.</strong> Once evals gate PRs they sit on the critical path, and latency and dollars become design parameters, not afterthoughts. The pattern that works is a cascade that mirrors the measurement hierarchy: deterministic trust-floor checks on every commit (milliseconds, effectively free), judge-scored value metrics on a sample at merge or nightly (minutes, real dollars), human audit weekly or on escalation (days, expensive). Each decision frequency gets the cheapest sensor with adequate resolution. An eval too slow or too expensive to run gets skipped — and a skipped eval measures nothing at all.</p>
+
+<h2>The instrument, assembled</h2>
+
+<p>The one-sentence version of this series: <strong>an eval is an instrument</strong> — it has variance (<a href="/build/error-bars-applied">part 3</a>), resolution (<a href="/build/how-many-examples-and-when-can-you-stop">part 4</a>), human sensors (<a href="/build/humans-are-instruments-rater-ops-is-the-eval">part 5</a>), bias you can measure and correct (<a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">part 6</a>), comparative validity (<a href="/build/rankings-under-uncertainty-what-arena-numbers-mean">part 7</a>), repetition behavior (<a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">part 8</a>) — and now an assembly manual. The loop was never the hard part; the field has had the loop for two years. The hard part is knowing what your instrument can and cannot tell you at every step of it, and that part now fits in a checklist.</p>
+
+<p>One story left: how we got here. Five eras of evaluation, each one built to fix the failure of the last, each one creating the measurement problem the next had to solve — ending at the statistics wave this series was written to continue. That's <a href="/build/every-eval-era-created-the-next-measurement-problem">part 1</a>, and it's next.</p>
+
+<h2>What this means for your eval</h2>
+
+<ul class="eb-checklist">
+  <li>Read traces until new failure modes stop appearing — per traffic segment, not overall — and make every taxonomy category a question a rater can answer about one trace.</li>
+  <li>Pilot the rubric on ~20 items with 2 raters before production; triage every disagreement (rubric, rater, or item); anchor scales to outcomes, not preferences.</li>
+  <li>Record clustering keys (seed prompt, source doc, conversation, annotator) at dataset build time — your intervals will need them and you can't reconstruct them later.</li>
+  <li>No gold set? Two tiers: trust floors that gate (near-deterministic, high TNR) and value metrics that hill-climb (judge-scored). Never average them into one number.</li>
+  <li>Validate the judge per class, freeze its version, stress-test it with injected failures, and correct the aggregate (Rogan–Gladen / PPI, part 6).</li>
+  <li>Make the release gate paired, powered for the minimum effect the decision cares about, sequential-safe if anyone peeks, and cluster-aware. Write the tie policy down first.</li>
+  <li>For every score, ask: rank or value? Any value-consumed score — thresholds, SLAs, composites — gets a reliability diagram; if it bends, fit isotonic on validation and check on test.</li>
+  <li>A judge's 8/10 is not a probability until you calibrate it against outcomes; don't let anyone threshold it as if it were.</li>
+  <li>Version rubrics and judges like code, with changelogs and a bridge plan before any instrument change.</li>
+  <li>Keep a scorecard per eval — what decision, what resolution, when last validated, who owns drift — and budget it like infrastructure: cheap checks → judge → human, cascaded.</li>
+</ul>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>Hamel Husain, <a href="https://hamel.dev/blog/posts/evals/">Your AI Product Needs Evals</a> (2024) and the <a href="https://hamel.dev/blog/posts/evals-faq/">Evals FAQ</a> (2025) — the canonical build loop this post instruments. Read these first.</li>
+  <li>Shankar, Zamfirescu-Pereira, Hartmann, Parameswaran &amp; Arawjo, <a href="https://arxiv.org/abs/2404.12272">Who Validates the Validators?</a> (2024) — criteria drift: graders revise their own criteria while grading.</li>
+  <li>Dawid &amp; Skene, <a href="https://www.jstor.org/stable/2346806">Maximum Likelihood Estimation of Observer Error-Rates Using the EM Algorithm</a> (1979) — the original model of raters as noisy instruments (part 5's backbone).</li>
+  <li>Zadrozny &amp; Elkan, <a href="https://dl.acm.org/doi/10.1145/775047.775151">Transforming Classifier Scores into Accurate Multiclass Probability Estimates</a> (KDD 2002) — isotonic regression as post-hoc calibration.</li>
+  <li>Guo, Pleiss, Sun &amp; Weinberger, <a href="https://arxiv.org/abs/1706.04599">On Calibration of Modern Neural Networks</a> (2017) — reliability diagrams, ECE, and why good discrimination coexists with bad calibration.</li>
+  <li>This series: <a href="/build/error-bars-applied">part 3</a> (error bars, clustering), <a href="/build/how-many-examples-and-when-can-you-stop">part 4</a> (power, sequential testing), <a href="/build/humans-are-instruments-rater-ops-is-the-eval">part 5</a> (raters, disagreement triage), <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">part 6</a> (judge debiasing, Rogan–Gladen, PPI), <a href="/build/rankings-under-uncertainty-what-arena-numbers-mean">part 7</a> (rankings), <a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">part 8</a> (pass@k, pass^k).</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-meta">Beyond Error Bars · Part 9 of 9 · Previous: <a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">Agent Evals: The Statistics of pass@k and pass^k</a> · Next: <a href="/build/every-eval-era-created-the-next-measurement-problem">Every Eval Era Created the Next Measurement Problem</a></p>
+<p class="eb-footer-note">Views mine.</p>

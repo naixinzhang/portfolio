@@ -1,0 +1,187 @@
+---
+title: "Your LLM Judge Is a Biased, Noisy Instrument. Debias It."
+description: "Everyone validates their judge now — and then trusts its pass-rate anyway. Judge accuracy is not estimate accuracy. Here is the correction epidemiology worked out in 1978, and the 2023 estimator that makes a small human-labeled set go a very long way."
+date: 2026-07-20
+draft: true
+---
+
+<!--
+  TRANSCRIBED FROM SCREENSHOTS (Documents/blog/post6) — 2026-07-16.
+  Original: Documents/eval study/html/post-06.html on the other laptop.
+
+  KNOWN GAPS:
+  1. THE PPI PLAYGROUND is a live JS demo (sliders: true pass rate θ, judge TPR,
+     judge TNR, judge labels N, human labels n; Resample button; four estimator
+     bars with coverage counters; reruns 300 simulated campaigns per move).
+     CANNOT be static HTML. Marked .eb-sim-placeholder with captured state.
+-->
+
+<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> An LLM judge is a biased sensor — its aggregate numbers are systematically off even at "92% agreement" — but a small human-labeled sample can provably correct them (Rogan–Gladen, then prediction-powered inference).</p>
+  <p><strong>You should care if:</strong> any metric you report is computed by a model grading another model.</p>
+  <p><strong>Do this today:</strong> measure your judge's TPR and TNR separately on ~100 human-labeled items — one agreement number hides the asymmetry that biases your metric.</p>
+</aside>
+
+<p>Everyone validates their judge now — and then trusts its pass-rate anyway. Judge accuracy is not estimate accuracy. Here is the correction epidemiology worked out in 1978, and the 2023 estimator that makes a small human-labeled set go a very long way.</p>
+
+<h2>92% agreement, and wrong anyway</h2>
+
+<p>Judge validation has, mercifully, become table stakes. Nearly every serious eval I've seen built in the past year performs the same ritual: hold out a hundred-ish outputs, have humans label them, run the LLM judge over the same set, compute agreement. The number comes back — say 92% — someone posts it in the channel with a checkmark, and from that day forward the judge grades everything. Five thousand outputs later the judge says 74% pass, and 74% goes into the deck, the dashboard, and the go/no-go review.</p>
+
+<p>The ritual validates the wrong thing. Hidden inside it is an inference nobody says out loud: <em>the judge agrees with humans 92% of the time, therefore its pass-rate is approximately the true pass-rate.</em> That does not follow, because agreement is one number and judge errors are not symmetric.</p>
+
+<p>Concretely: suppose the judge correctly approves true passes 95% of the time but correctly flunks true failures only 80% of the time — a very ordinary asymmetry; LLM judges are chronically credulous. If the true pass rate is 60%, the judge's expected reported rate is 0.60·0.95 + 0.40·0.20 = 65%. Out of every hundred outputs it waves through eight failures (20% of the forty) and flunks three passes (5% of the sixty): a net five points of pure inflation. And this judge's overall agreement on your validation set? 0.60·0.95 + 0.40·0.80 = 89% — a number most teams would celebrate.</p>
+
+<figure class="eb-judgeflow">
+  <div class="eb-jf-grid">
+    <div class="eb-jf-box eb-jf-in"><p class="eb-jf-label">true pass rate</p><p class="eb-jf-big">60%</p></div>
+    <div class="eb-jf-arrow">&rarr;</div>
+    <div class="eb-jf-box eb-jf-judge"><p class="eb-jf-title">the LLM judge</p><p class="eb-jf-spec">TPR (catches passes): 95%</p><p class="eb-jf-spec">TNR (catches fails): 80%</p><p class="eb-jf-vibe">chronically credulous</p></div>
+    <div class="eb-jf-arrow">&rarr;</div>
+    <div class="eb-jf-box eb-jf-out"><span class="eb-jf-tag">+5 pts</span><p class="eb-jf-label">judge-reported rate</p><p class="eb-jf-big eb-jf-red">65%</p></div>
+  </div>
+  <div class="eb-jf-subs"><span class="eb-jf-sub-a">overall agreement: 89% &mdash; a number teams celebrate</span><span class="eb-jf-sub-b">8 failures waved through, 3 passes flunked (per 100)</span></div>
+  <p class="eb-caption">A good-looking judge can still systematically inflate your metric: asymmetric errors add five points here, and grading more outputs only tightens the interval around the wrong number.</p>
+</figure>
+
+<p>Worse, the bias does not shrink when you grade more outputs. Judge 5,000 instead of 200 and the confidence interval tightens obediently around 65% — you have become <em>precisely wrong</em>. Judge accuracy is a property of the instrument. Estimate accuracy is a property of what you do with its readings. This post is about the second thing: two corrections — one sitting in epidemiology journals since 1978, one published in <em>Science</em> in 2023 — that turn a biased judge plus a small human-labeled set into an unbiased estimate with an honest confidence interval. Five-plus papers, and as far as I can find, zero blog-level explainers. Let's fix that.</p>
+
+<h2>Validate like an epidemiologist</h2>
+
+<p>Your LLM judge is a diagnostic test. It examines a specimen (an output) and returns positive or negative for a condition (pass). Epidemiology figured out how to live with imperfect diagnostic tests decades ago, and its first rule is: never characterize a test with a single accuracy number. Characterize it <strong>per class</strong>, against held-out human labels the judge has never influenced:</p>
+
+<ul class="eb-series">
+  <li><strong>TPR (sensitivity):</strong> of the outputs humans call <em>pass</em>, what fraction does the judge also call pass?</li>
+  <li><strong>TNR (specificity):</strong> of the outputs humans call <em>fail</em>, what fraction does the judge also call fail?</li>
+</ul>
+
+<p>A single "agreement" number is the prevalence-weighted blend of the two — θ·TPR + (1−θ)·TNR — so it hides exactly the asymmetry that causes bias, and it silently changes whenever your output distribution shifts, with no change in the judge at all (<a href="/build/humans-are-instruments-rater-ops-is-the-eval">part 5</a>'s prevalence paradox, same disease, new host). Hamel Husain's <a href="https://hamel.dev/blog/posts/evals-faq/">evals FAQ</a> — deservedly canon at this point — teaches exactly this: validate judges with TPR and TNR on held-out human labels. And it takes one tantalizing step further, noting that with those numbers in hand you <em>can correct</em> the judge's estimates to recover the true failure rate. The FAQ says the correction exists; it doesn't print it. Consider the rest of this post the missing appendix.</p>
+
+<h2>The correction has been sitting there since 1978</h2>
+
+<p>Write the bias down as arithmetic and the fix falls out. What the judge observes is a mixture: true passes it correctly approves, plus true failures it mistakenly approves.</p>
+
+<pre><code>p_obs = θ · TPR + (1−θ) · (1−TNR)</code></pre>
+
+<p>One equation, one unknown. Solve for θ:</p>
+
+<pre><code>θ̂ = (p_obs + TNR − 1) / (TPR + TNR − 1)</code></pre>
+
+<p>This is the <strong>Rogan–Gladen estimator</strong>, published in 1978 to correct disease-prevalence estimates from imperfect screening tests. Your judge is a screening test; your pass rate is a prevalence. Worked example, with the numbers from the cold open: the judge reports a 65% pass rate over 5,000 outputs; your validation set says TPR = 0.95, TNR = 0.80.</p>
+
+<pre><code>θ̂ = (0.65 + 0.80 − 1) / (0.95 + 0.80 − 1) = 0.45 / 0.75 = 60%</code></pre>
+
+<p>Five points of inflation removed by one line of algebra. (If you took the popular evals course: the <a href="https://github.com/ai-evals-course/judgy">judgy</a> library implements exactly this.) Read the pieces aloud: the numerator is <strong>what the judge said (65%)</strong> plus <strong>how often it catches real fails (80%)</strong> minus one; the denominator, <strong>how often it catches real passes (95%)</strong> plus <strong>how often it catches real fails (80%)</strong> minus one.</p>
+
+<figure class="eb-rgformula">
+  <svg viewBox="0 0 880 360" class="eb-rg-svg" role="img" aria-label="Rogan-Gladen estimator: corrected pass rate equals p_obs plus TNR minus 1 over TPR plus TNR minus 1"><circle cx="60" cy="150" r="4" fill="#2f8f4e"/><text x="72" y="146" font-size="13" fill="var(--muted)">the corrected</text><text x="72" y="163" font-size="13" fill="var(--muted)">true pass rate</text><line x1="120" y1="170" x2="150" y2="192" stroke="var(--muted)" stroke-width="0.8"/><text x="150" y="216" font-size="40" font-weight="700" fill="#2f8f4e">&#952;&#770;</text><text x="205" y="214" font-size="30" fill="var(--foreground)">=</text><text x="530" y="196" font-size="26" font-weight="700" text-anchor="middle"><tspan fill="#c0392b">p</tspan><tspan fill="#c0392b" font-size="16" dy="5">obs</tspan><tspan dy="-5" fill="var(--foreground)"> + </tspan><tspan fill="#3b6fd4">TNR</tspan><tspan fill="var(--foreground)"> &minus; 1</tspan></text><line x1="405" y1="210" x2="655" y2="210" stroke="var(--foreground)" stroke-width="2"/><text x="530" y="250" font-size="26" font-weight="700" text-anchor="middle"><tspan fill="#3b6fd4">TPR</tspan><tspan fill="var(--foreground)"> + </tspan><tspan fill="#3b6fd4">TNR</tspan><tspan fill="var(--foreground)"> &minus; 1</tspan></text><circle cx="205" cy="90" r="4" fill="#c0392b"/><text x="216" y="94" font-size="13" fill="var(--muted)">what the judge said (65%)</text><line x1="300" y1="100" x2="452" y2="178" stroke="var(--muted)" stroke-width="0.8"/><circle cx="582" cy="90" r="4" fill="#3b6fd4"/><text x="593" y="94" font-size="13" fill="var(--muted)">how often it catches real fails (80%)</text><line x1="612" y1="100" x2="565" y2="178" stroke="var(--muted)" stroke-width="0.8"/><circle cx="210" cy="298" r="4" fill="#3b6fd4"/><text x="221" y="302" font-size="13" fill="var(--muted)">how often it catches real passes (95%)</text><line x1="320" y1="292" x2="460" y2="258" stroke="var(--muted)" stroke-width="0.8"/><text x="440" y="335" font-size="15" text-anchor="middle" fill="var(--foreground)">&#952;&#770; = (0.65 + 0.80 &minus; 1) / (0.95 + 0.80 &minus; 1) = 0.45 / 0.75 = <tspan font-weight="700">60%</tspan></text></svg>
+  <p class="eb-caption">Epidemiology solved your judge problem in 1978 &mdash; the observed rate plus two per-class error rates recover the true one in a line of algebra.</p>
+</figure>
+
+<p>Three honest caveats. First, TPR and TNR are themselves estimates from a small human-labeled set, and their sampling error propagates into θ — so don't report the corrected point estimate naked; bootstrap the whole pipeline (resample the validation set and the judged set together, take percentile intervals; the widget below does this). Second, look at that denominator: TPR + TNR − 1 is Youden's J, a judge's distance from a coin flip. As it approaches zero the correction divides by nearly nothing and the estimate explodes — no algebra can rescue an uninformative judge, and the formula can return values outside [0, 1]; you clamp, and you treat the clamp as a warning that your validation set is too small or your judge too weak. Third, the formula is binary-only.</p>
+
+<h2>Prediction-powered inference: the crown</h2>
+
+<p>Rogan–Gladen is a fine emergency repair, and knowing it exists already puts you ahead of most eval reports. But it is binary-only, its confidence interval has to be bolted on with a bootstrap. There is a modern estimator that fixes all three at once — and it's the one I'd actually build on.</p>
+
+<p><strong>Prediction-powered inference</strong> (Angelopoulos, Bates, Fannjiang, Jordan &amp; Zrnic, <em>Science</em> 2023) was designed for exactly the shape of our problem: a huge set of cheap machine predictions, a small set of expensive gold labels, and the desire to use both without lying to yourself. The setup: you have N outputs graded only by the judge (N is large — judges are cheap), and n outputs drawn <em>uniformly at random</em> from the same pool where you have both the judge's verdict f and a human label y (n is small — humans are expensive). The estimator for the true pass rate is:</p>
+
+<pre><code>θ̂_PP = (1/N)·Σ f(x_i) − [ (1/n)·Σ (f(x_j) − y_j) ]
+        └─ judge average ─┘   └──── rectifier ────┘</code></pre>
+
+<p>Read it aloud: <em>the judge's average, minus the judge's measured bias.</em> The rectifier is the average amount by which the judge over-calls relative to humans on the paired subset — in our running example it would come out around +5 points, and subtracting it lands you back at the truth. The expectation of the first term is p_obs; the expectation of the second is p_obs − θ; the difference is θ, unbiased, <em>no matter how bad the judge is.</em> Notice what's absent: no TPR, no TNR, no model of the judge's error process, no equation to invert. You measure the bias directly and subtract it — which is also why PPI generalizes past binary verdicts to rubric scores, numeric ratings, means of anything bounded, while Rogan–Gladen stays stuck at 2×2.</p>
+
+<p>The confidence interval is just as clean. The two terms are computed on independent samples, so their variances add:</p>
+
+<pre><code>Var(θ̂_PP) = σ²_f / N + σ²_{f−y} / n
+  σ²_f  = sample variance of judge verdicts on the N unlabeled items
+  σ²_{f−y} = sample variance of (f_j − y_j) on the n paired items
+  95% CI:  θ̂_PP ± 1.96 · √Var(θ̂_PP)</code></pre>
+
+<p>The first term is tiny — N is huge and judge labels cost fractions of a cent. The second term is the real price, and here is the elegant part: σ²_{f−y} measures how often the <em>judge disagrees with humans</em>. Three properties follow, and they're the whole reason this estimator deserves to be standard practice:</p>
+
+<ol class="eb-series">
+  <li><strong>Validity is unconditional.</strong> The CI has correct coverage whether your judge is superb or a coin flip. You cannot be burned by trusting it.</li>
+  <li><strong>The better the judge, the tighter the interval.</strong> A judge that mostly agrees with humans makes f − y mostly zero, shrinking σ²_{f−y} toward nothing. A good judge literally earns you effective sample size; a bad one costs you nothing but width.</li>
+  <li><strong>It beats throwing the judge away.</strong> Humans-alone gives variance σ²_y/n; PPI gives σ²_{f−y}/n (plus the negligible first term). Whenever the judge has real signal, the disagreement f − y varies less than y itself, and PPI wins — same n as humans, tighter interval. (For a pathologically bad judge, plain PPI can lose; the tuned variant — "power tuning," a scalar λ on the judge term — provably never does worse than humans-alone. Use a library, get λ for free.)</li>
+</ol>
+
+<p>The follow-up literature has already specialized this to LLM evals: stratified PPI for hybrid human/judge language-model evaluation (NeurIPS 2024), and adaptive versions that choose <em>which</em> items to send to humans (2025). But the base recipe is five steps:</p>
+
+<ol class="eb-series">
+  <li><strong>Judge everything.</strong> Run the (frozen — see below) judge over all N outputs.</li>
+  <li><strong>Sample n items uniformly at random</strong> from that same pool — 100–200 is a realistic start — and collect human labels. Keep the judge's verdicts on those same items. The randomness is load-bearing: a convenience sample ("the ones that looked fishy") biases the rectifier, and then nothing here protects you.</li>
+  <li><strong>Compute the rectifier:</strong> the mean of (judge − human) over the n paired items.</li>
+  <li><strong>Subtract:</strong> θ̂_PP = judge's mean verdict − rectifier.</li>
+  <li><strong>Report the CI:</strong> θ̂_PP ± 1.96·√(σ²_f/N + σ²_{f−y}/n). That number — not the raw judge pass-rate — is the metric.</li>
+</ol>
+
+<figure class="eb-ppiflow">
+  <div class="eb-pf-grid">
+    <div class="eb-pf-left">
+      <div class="eb-pf-box"><p class="eb-pf-h">the judge grades everything</p><p class="eb-pf-big">N = 5,000</p><p class="eb-pf-note">cheap &mdash; fractions of a cent</p></div>
+      <p class="eb-pf-random">drawn at random</p>
+      <div class="eb-pf-box"><p class="eb-pf-h">humans grade a random slice</p><p class="eb-pf-big">n = 100</p><p class="eb-pf-note">gold &mdash; expensive</p></div>
+    </div>
+    <div class="eb-pf-arrows"><svg class="eb-pf-conv" viewBox="0 0 60 150" preserveAspectRatio="none" aria-hidden="true"><path d="M2 30 L52 75" stroke="var(--muted)" stroke-width="1.5" fill="none"/><path d="M2 120 L52 75" stroke="var(--muted)" stroke-width="1.5" fill="none"/><path d="M52 75 l-8 -3 l2 6 z" fill="var(--muted)"/></svg></div>
+    <div class="eb-pf-box eb-pf-rect"><p class="eb-pf-h2">the rectifier</p><p class="eb-pf-note2">the judge&rsquo;s measured bias:</p><p class="eb-pf-note2">mean(judge &minus; human)</p></div>
+    <div class="eb-pf-arrow2">&rarr;</div>
+    <div class="eb-pf-box eb-pf-pp"><p class="eb-pf-big2">&theta;&#770;<sub>PP</sub></p><p class="eb-pf-note">unbiased estimate</p><p class="eb-pf-note">honest, tight CI</p></div>
+  </div>
+  <p class="eb-pf-formula">estimate = judge average &minus; measured bias</p>
+  <p class="eb-caption">A small human sample buys back the judge&rsquo;s bias &mdash; and keeps the judge&rsquo;s scale: N does the narrowing, n does the truth-telling.</p>
+</figure>
+
+<div data-sim="ppi-playground"></div>
+<p>The two headline behaviors: the naive judge bar is the <em>narrowest and the most wrong</em> — at the defaults its "95%" interval contains the truth in roughly none of the 300 experiments, the purest form of confidently wrong that exists in eval reporting. And PPI's coverage pins to ~95% at every slider setting while its width floats between two anchors: a perfect judge buys you nearly the full N, a useless one leaves you roughly where your n humans already were. Plain PPI — what this widget runs — can give back a sliver of that width to a genuinely bad judge (power-tuning removes even that); mostly the only question is how much you win.</p>
+
+<h2>Judge discipline: field notes</h2>
+
+<p>Everything above assumes the instrument you validated is the instrument that graded. That assumption dies quietly in practice, so — some patterns from eval builds I've been around, none of which appear in the papers:</p>
+
+<ul class="eb-series">
+  <li><strong>Freeze the judge before data collection.</strong> On a leaderboard build I watched, the working norm was that the judge prompt froze before the first task was authored. Editing the judge mid-eval is swapping the thermometer mid-experiment: every verdict before the edit lives on a different scale from every verdict after, and your TPR/TNR — measured on which version, exactly? — transfers to neither. Version the judge prompt like a schema; a change means a new validation run and a new rectifier.</li>
+  <li><strong>Stress-test with planted lies.</strong> The best judge calibration protocol I've seen: an engineer building a claim-level verifier injected fabricated false claims into otherwise-real answers and required <strong>100% detection</strong> before the judge was trusted with anything. Not 95% — a judge that misses planted, known-false claims at validation time will miss subtler ones at scale, in exactly the direction that inflates your metric.</li>
+  <li><strong>Watch for context loss.</strong> The same build surfaced a failure mode worth stealing: judging decomposed atomic claims in isolation strips the cross-sentence qualifier that made a claim true, so the judge marks correct claims wrong. The tempting fix — show the judge the full response — has its own documented failure: with full context the judge starts making its own inferences and drifts off the rubric. There's no free lunch, only a deliberate choice; whichever you choose, your TPR/TNR must be measured on that configuration.</li>
+  <li><strong>Assume position, verbosity, and self-preference bias.</strong> Pairwise judges systematically prefer the first-listed answer, the longer answer, and their own model family's answers (Zheng et al.'s MT-Bench paper measured all three). The standard mitigation is cheap: run every comparison both ways and average; a verdict that flips when you swap the order isn't a verdict, it's noise — score it a tie.</li>
+  <li><strong>Pin the judge's model version.</strong> A judge pointed at a <code>-latest</code> API alias is an instrument that silently recalibrates itself whenever the provider ships an update. Your rectifier and your TPR/TNR describe last month's judge. Pin the version; when you deliberately upgrade, re-validate and re-estimate before trusting a single aggregate.</li>
+</ul>
+
+<h2>The same sensor, twice</h2>
+
+<p>If this post felt structurally familiar, that's because it is <a href="/build/humans-are-instruments-rater-ops-is-the-eval">part 5</a> again with the labels swapped. Human raters and LLM judges are the same object: noisy sensors pointed at a construct you can't observe directly. And the answer is the same two-step, both times: <strong>measure the sensor</strong> against something better (gold sets and agreement for raters; held-out human labels for judges), then <strong>correct the estimate and carry the sensor's uncertainty into the error bar</strong> (Dawid–Skene there; Rogan–Gladen and PPI here). What you never get to do — with either sensor — is read the raw output and call it the measurement.</p>
+
+<p>Next up, the numbers stop being numbers and start being <em>rankings</em>: Bradley–Terry, arena leaderboards, why ranks flip when nothing changed, and what a confidence interval on "#3" even means. That's part 7.</p>
+
+<h2>What this means for your eval</h2>
+
+<ul class="eb-checklist">
+  <li>Never report a raw judge pass-rate as the metric. Report a debiased estimate with a CI that accounts for the judge's errors.</li>
+  <li>Validate per class — TPR <em>and</em> TNR on a held-out human-labeled set (aim for ≥50 examples of each class). A single agreement number hides the asymmetry that biases your aggregate.</li>
+  <li>Quick fix: Rogan–Gladen, θ̂ = (p_obs + TNR − 1)/(TPR + TNR − 1). Bootstrap the CI; if TPR + TNR − 1 is near zero, your judge is a coin flip and no correction can save it.</li>
+  <li>Better fix: PPI — judge everything, human-label a small <em>uniform random</em> subset, subtract the measured bias, report θ̂_PP ± 1.96·√(σ²_f/N + σ²_{f−y}/n).</li>
+  <li>The paired human subset must be a random draw from the judged pool. Convenience-sampling "suspicious" items biases the rectifier and voids the guarantee.</li>
+  <li>Freeze and version the judge prompt before collection; any change means a new validation run and a new rectifier.</li>
+  <li>Stress-test the judge with injected known-false claims; require 100% detection before trusting it at scale.</li>
+  <li>Swap presentation order on pairwise judgments; treat flip-on-swap as a tie. Pin the judge's model version and re-validate on every upgrade.</li>
+</ul>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>W. J. Rogan &amp; B. Gladen, <a href="https://academic.oup.com/aje/article-abstract/107/1/71/104051">Estimating prevalence from the results of a screening test</a>, American Journal of Epidemiology 107(1), 1978 — the original correction.</li>
+  <li>A. N. Angelopoulos, S. Bates, C. Fannjiang, M. I. Jordan &amp; T. Zrnic, <a href="https://arxiv.org/abs/2301.09633">Prediction-Powered Inference</a>, Science 382:669–674 (2023) — the framework; PPI++ / power tuning in the follow-up (arXiv 2311.01453).</li>
+  <li><a href="https://arxiv.org/abs/2406.04291">Stratified Prediction-Powered Inference for Hybrid Language Model Evaluation</a> (NeurIPS 2024) — PPI specialized to LM evals with stratified human sampling.</li>
+  <li><a href="https://arxiv.org/abs/2505.18659">Adaptive prediction-powered autoevaluation</a> (2025) — actively choosing which items get human labels.</li>
+  <li>L. Zheng et al., <a href="https://arxiv.org/abs/2306.05685">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena</a> (2023) — position, verbosity, and self-preference biases, measured.</li>
+  <li>Hamel Husain, <a href="https://hamel.dev/blog/posts/evals-faq/">FAQ on AI Evals</a> — the workflow canon; teaches TPR/TNR judge validation and names the correction this post supplies.</li>
+  <li><a href="https://github.com/ai-evals-course/judgy">judgy</a> — a small Python implementation of the Rogan–Gladen correction with bootstrap CIs, from the popular evals course.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-meta">Beyond Error Bars · Part 6 of 9 · Previous: <a href="/build/humans-are-instruments-rater-ops-is-the-eval">Humans Are Instruments</a> · Next: <a href="/build/rankings-under-uncertainty-what-arena-numbers-mean">Rankings Under Uncertainty</a></p>
+<p class="eb-footer-note">Views mine.</p>

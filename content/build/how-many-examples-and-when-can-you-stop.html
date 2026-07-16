@@ -1,0 +1,185 @@
+---
+title: "How Many Examples — and When Can You Stop?"
+description: "Power analysis answers \"how many examples\" in one formula. The harder question is when you're allowed to stop — because the way most teams stop turns a 5% error rate into 30%."
+date: 2026-07-18
+draft: true
+---
+
+<!--
+  TRANSCRIBED FROM SCREENSHOTS (Documents/blog/post4) — 2026-07-16.
+  Original: Documents/eval study/html/post-04.html on the other laptop.
+
+  KNOWN GAPS:
+  1. THE SAMPLE-SIZE & STOPPING SIMULATOR is a live JS demo (Power tab with
+     sliders + power curve; Peeking tab with "Run 200 experiments" random walks,
+     MSPRT meter). CANNOT be static HTML. Marked .eb-sim-placeholder with both
+     captured tab states recorded.
+-->
+
+<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> You can compute how many examples your eval needs before building it — and checking results as they trickle in ("peeking") silently multiplies your false positives by ~6x.</p>
+  <p><strong>You should care if:</strong> anyone has asked "is 50 examples enough?" or stopped an eval early because it "already looked significant."</p>
+  <p><strong>Do this today:</strong> run both models on the same questions (paired design) — it's the same rigor for a fraction of the sample.</p>
+</aside>
+
+<h2>Enough for what?</h2>
+
+<p>The statistics question I get asked more than any other — by engineers, by PMs, once by two different teams in the same week — is some version of <strong>"is 50 examples enough?"</strong> It's asked the way you'd show a doctor a mole: hoping for a quick "that's fine." And it has no answer, because as posed it's missing half its clauses. Enough to detect <em>what size difference</em>, at <em>what base rate</em>, feeding <em>what decision?</em></p>
+
+<p>The framing from the last two posts does the heavy lifting here. An eval is a decision instrument (<a href="/build/an-eval-is-a-decision-instrument">part 2</a>), and its error bars are its resolution limit (<a href="/build/error-bars-applied">part 3</a>). So "is n enough" really means: <em>does the instrument's resolution match the difference the decision cares about?</em> At a base accuracy near 70%, a 50-example score carries roughly a ±13-point confidence interval. If your deploy gate exists to catch a 15-point collapse, that's a working instrument. If it exists to confirm the new prompt is 2 points better, it's a bathroom scale for weighing envelopes.</p>
+
+<p>The pleasant news: converting "enough for what" into a number takes one formula. The unpleasant news is what the formula says. And the genuinely dangerous news is the second question in the title — when you're allowed to stop — where the standard practice in eval loops quietly manufactures false positives at six times the advertised rate. In order.</p>
+
+<h2>The formula that answers "how many"</h2>
+
+<p>When you compare two models, there are two ways to be wrong. You can see a difference that isn't there — a false alarm, capped at 5% when you test at 95% confidence. And you can miss a difference that is there; the probability of catching it is called <strong>power</strong>, conventionally set at 80%. Fix both knobs, decide the smallest true difference Δ you need to detect, and the sample size falls out. For two models scored pass/fail on <em>separate</em> question sets at base accuracy around p, the per-model requirement is approximately:</p>
+
+<pre><code>n per model ≈ 2 · (z_α/2 + z_β)² · p(1−p) / Δ²  ≈  15.7 · p(1−p) / Δ²</code></pre>
+
+<p>with z_α/2 = 1.96 and z_β = 0.84, whose sum squared gives the constant. Plugging in a realistic base accuracy of p = 0.7:</p>
+
+<figure class="eb-ntable">
+  <table>
+    <thead><tr><th>Difference to detect</th><th>n per model</th></tr></thead>
+    <tbody>
+      <tr><td>Δ = 2 points</td><td>≈ 8,200</td></tr>
+      <tr><td>Δ = 5 points</td><td>≈ 1,300</td></tr>
+      <tr><td>Δ = 10 points</td><td>≈ 330</td></tr>
+    </tbody>
+  </table>
+</figure>
+
+<p>Two things to notice before the table finishes sinking in. The Δ² in the denominator is the sting: halving the difference you care about <em>quadruples</em> the bill, which is why "we'll just eyeball whether the 2-point gain is real" fails on a thousand-example benchmark. And p(1−p) peaks at 50% accuracy, so benchmarks that hover near coin-flip — which is where hard benchmarks are deliberately built to sit — need the most items. The derivations are in Evan Miller's paper (recommendation 5) and worked through with code in Cameron Wolfe's tutorial; I won't repeat them.</p>
+
+<figure class="eb-ncards">
+  <p class="eb-ncards-title">How many examples to detect a difference of Δ?</p>
+  <p class="eb-ncards-sub">n per model, unpaired, at base accuracy p = 70%</p>
+  <div class="eb-ncards-row">
+    <div class="eb-ncol">
+      <div class="eb-ncard eb-ncard-1">
+        <span class="eb-npill">Δ = 10 pts</span>
+        <div class="eb-nbody"><span class="eb-nnum">n ≈ 330</span><span class="eb-nsub">per model</span></div>
+      </div>
+    </div>
+    <div class="eb-ncol">
+      <span class="eb-nmult">4× the examples</span>
+      <div class="eb-ncard eb-ncard-2">
+        <span class="eb-npill">Δ = 5 pts</span>
+        <div class="eb-nbody"><span class="eb-nnum">n ≈ 1,300</span><span class="eb-nsub">per model</span></div>
+      </div>
+    </div>
+    <div class="eb-ncol">
+      <span class="eb-nmult">6× more again</span>
+      <div class="eb-ncard eb-ncard-3">
+        <span class="eb-npill">Δ = 2 pts</span>
+        <div class="eb-nbody"><span class="eb-nnum">n ≈ 8,200</span><span class="eb-nsub">per model</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="eb-caption">Halving the difference you need to detect quadruples the bill — the Δ² in the denominator is the entire economics of eval sizing.</p>
+</figure>
+
+<p>What should Δ be? Not "any statistically detectable difference" — the <em>smallest difference that would change the decision</em>. If you'd only switch model providers for 5 points or more, Δ is 5 points, and detecting 1-point differences is a luxury you shouldn't buy. This is part 2's question wearing a sample-size costume.</p>
+
+<p>The lens is kinder to folk heuristics than you might expect. Anthropic's agent-evals guidance suggests starting with 20–50 real tasks; the community rule of thumb says review ~100 traces. Run those through the formula and they're power analysis in folk form: at n = 50 and p = 0.7, an unpaired comparison reliably detects differences of about 26 points. That's a smoke detector — an instrument calibrated for "did I break something badly?" — and for that decision it's honestly sized. The mistake isn't small n. It's small n with a 2-point claim stapled to it.</p>
+
+<h2>The paired free lunch</h2>
+
+<p>The table above has an assumption baked in: the two models answered <em>separate</em> question sets — the "unpaired" design, priced at that 2·p(1−p) variance term. But nobody evaluates that way voluntarily. You own the eval set; you run <strong>both models on the same questions</strong>. If you keep the per-question results instead of just two toplines, the comparison changes character entirely. Questions both models get right tell you nothing about which is better. Questions both get wrong: also nothing. Those concordant pairs cancel out of the comparison. The entire signal lives in the <strong>discordant pairs</strong>: count b, where A succeeds and B fails, against c, where B succeeds and A fails. McNemar's test is just:</p>
+
+<pre><code>z = (b − c) / √(b + c)</code></pre>
+
+<p>Two counts and a square root. The required sample size now scales with the <strong>discordant rate</strong> d = (b+c)/n — the fraction of questions where the models disagree — instead of with 2·p(1−p): roughly n ≈ 7.85·d/Δ². And frontier models agree a <em>lot</em>: similar training data, the same easy questions, the same hard ones, so d is often 5–20%. At p = 70% the unpaired variance term is 0.42; a paired eval with d = 10% needs roughly a quarter of the examples, and the Δ = 5 row of the table drops from ~1,300 to ~310. Across realistic settings the saving runs <strong>2–8×</strong>.</p>
+
+<figure class="eb-paired">
+  <p class="eb-paired-top">detecting the same Δ = 5 pts at base accuracy p = 70%</p>
+  <div class="eb-paired-row">
+    <div class="eb-paired-card">
+      <p class="eb-paired-title">Unpaired: two separate question sets</p>
+      <div class="eb-paired-sets">
+        <div class="eb-paired-set"><p class="eb-paired-legend"><span class="eb-dot-a"></span> model A&rsquo;s set</p><div class="eb-dotgrid eb-dg-a"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+        <span class="eb-paired-plus">+</span>
+        <div class="eb-paired-set"><p class="eb-paired-legend"><span class="eb-dot-b"></span> model B&rsquo;s set</p><div class="eb-dotgrid eb-dg-b"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+      </div>
+      <p class="eb-paired-note">every question answered by one model only</p>
+      <p class="eb-paired-n">n ≈ 1,300</p>
+      <p class="eb-paired-sub">questions per model</p>
+    </div>
+    <div class="eb-paired-card eb-paired-lit">
+      <p class="eb-paired-title">Paired: same questions, both models</p>
+      <div class="eb-paired-sets eb-paired-one">
+        <div class="eb-paired-set"><p class="eb-paired-legend"><span class="eb-dot-both"></span> one question, scored by both models</p><div class="eb-dotgrid eb-dg-both"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
+      </div>
+      <p class="eb-paired-note">only the disagreements carry signal</p>
+      <p class="eb-paired-n">n ≈ 310</p>
+      <p class="eb-paired-sub">questions · d = 10% → ~4× fewer</p>
+    </div>
+  </div>
+  <p class="eb-caption">The cheapest rigor upgrade in eval statistics: keep the pairing and test only where the models disagree — the same detection job drops from ~1,300 questions per model to ~310.</p>
+</figure>
+
+<p>The cheapest rigor upgrade in eval statistics: keep the pairing and test only where the models disagree — the same detection job drops from ~1,300 questions per model to ~310.</p>
+
+<p>Here's my running complaint: paired analysis is the cheapest rigor upgrade in eval statistics, and almost nobody takes it. The data is already paired — you ran both models on the same benchmark, this afternoon. Then the dashboard throws the pairing away, displays two aggregate accuracies with separate error bars, and invites everyone to squint at whether they overlap. Keep the per-question grid. Test the discordant counts. It's free money. (Miller makes the same point as his recommendation 4; the widget below lets you feel the size of the lunch — and its second tab holds the trap this post is really about.)</p>
+
+<div data-sim="sample-size-simulator"></div>
+<h2>The peeking problem</h2>
+
+<p>Now the trap. A team is A/B testing a prompt change. The eval runs in batches — nightly, or per CI push — and the dashboard shows a running significance test on the accumulating data. Tuesday the difference crosses p &lt; 0.05; they stop the test and ship. It feels like efficiency: why burn examples to reach n = 500 when the answer was already legible at 180? This is the single most reliable way I know to manufacture a false positive.</p>
+
+<figure class="eb-zchart">
+  <svg viewBox="0 0 900 316" class="eb-zchart-svg" role="img" aria-label="running z-statistic of an A/A test crossing the 1.96 boundary once then wandering back to zero"><text x="108" y="24" font-size="14" font-weight="700" fill="var(--foreground)">an A/A test: two identical models, true difference exactly zero</text><line x1="92" y1="156.0" x2="862" y2="156.0" stroke="var(--border)" stroke-width="1"/><line x1="92" y1="76.0" x2="862" y2="76.0" stroke="var(--muted)" stroke-width="1" stroke-dasharray="5 4" opacity="0.7"/><line x1="92" y1="236.0" x2="862" y2="236.0" stroke="var(--muted)" stroke-width="1" stroke-dasharray="5 4" opacity="0.7"/><text x="82" y="80.0" font-size="12" fill="var(--muted)" text-anchor="end">+1.96</text><text x="82" y="160.0" font-size="12" fill="var(--muted)" text-anchor="end">z = 0</text><text x="82" y="240.0" font-size="12" fill="var(--muted)" text-anchor="end">−1.96</text><text x="862" y="68.0" font-size="12" fill="var(--muted)" text-anchor="end">significance boundary</text><text x="554.0" y="211.1" font-size="12" fill="var(--muted)">…and the rest of the run wandered back to nothing</text><polyline points="400.0,76.0 449.3,135.6 495.5,115.2 550.9,168.2 600.2,196.0 643.3,162.1 686.4,139.7 729.6,200.9 775.8,147.8 812.7,131.5 862.0,160.1" fill="none" stroke="var(--muted)" stroke-width="1.4" opacity="0.85"/><polyline points="110.5,154.0 135.1,168.2 162.8,179.7 193.6,173.1 221.4,160.1 252.2,144.6 276.8,131.5 301.4,135.6 332.2,119.3 366.1,98.9 400.0,76.0" fill="none" stroke="var(--eb-accent)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><text x="181.3" y="194.8" font-size="12" fill="var(--muted)">running z-statistic</text><path d="M400.0 76.0 L410.0 90.0" stroke="#d64541" stroke-width="1.2"/><rect x="410.0" y="62.0" width="250" height="28" rx="8" fill="var(--background)" stroke="#d64541" stroke-width="1.5"/><text x="535.0" y="80.0" font-size="12.5" fill="#d64541" text-anchor="middle">you stopped here and declared victory</text><circle cx="400.0" cy="76.0" r="5.5" fill="#d64541"/><text x="246.0" y="278.0" font-size="12" fill="var(--muted)" text-anchor="middle">n=100</text><text x="400.0" y="278.0" font-size="12" fill="var(--muted)" text-anchor="middle">n=200</text><text x="554.0" y="278.0" font-size="12" fill="var(--muted)" text-anchor="middle">n=300</text><text x="708.0" y="278.0" font-size="12" fill="var(--muted)" text-anchor="middle">n=400</text><text x="862.0" y="278.0" font-size="12" fill="var(--muted)" text-anchor="middle">n=500</text><text x="477.0" y="310" font-size="12" fill="var(--muted)" text-anchor="middle">cumulative n per model, tested after every 20-question batch</text></svg>
+  <p class="eb-caption">Check often enough and noise will eventually look like a discovery — this run is two identical models, and stopping at the first crossing is how a 5% error rate becomes ~30%.</p>
+</figure>
+
+<p>Here's why. When there is <em>no real difference</em>, the z-statistic doesn't sit at zero — it wanders. It's a random walk. Test once at a pre-committed n and there's a 5% chance the walk happens to be beyond ±1.96 at that instant; that's the advertised error rate, and it's honest. But check after every batch and the walk gets a fresh chance at every look. The looks are correlated — but not perfectly, so each look adds real additional risk, and "stop the moment it's significant" means you keep the <em>maximum</em> of the walk, compared against a threshold calibrated for a single glance. With a handful of planned looks the nominal 5% inflates to ~14%; checking after every one of 25 batches pushes it to 25–30%; peek even more often and 40% is reachable. The second tab of the simulator runs the cleanest version of this: an A/A test, two identical models, true Δ = 0. The fixed-n counter sits near the advertised 5%. The peeking counter — same data, same test, different stopping rule — sits around 30%. One eval in three "finds" a difference that does not exist.</p>
+
+<blockquote class="eb-pullquote">A running significance test on accumulating data is not a stricter check. It is a false-positive machine with a progress bar.</blockquote>
+
+<p>None of this is new — Evan Miller (yes, the same one) wrote "How Not to Run an A/B Test" in 2010 about exactly this failure in web experimentation, and it remains the cleanest explanation in print. What's striking is watching the eval world rebuild the same trap with better fonts: model-regression gates that re-test on every push, prompt bake-offs watched batch by batch, leaderboard deltas checked daily as new tasks trickle in. Every one of those is a sequential experiment wearing a fixed-n test's statistics.</p>
+
+<h2>The legitimate menu</h2>
+
+<p>Wanting to stop early isn't a sin — examples cost money, and shipping a real improvement three days sooner is worth something. Statistics has three honest ways to buy that option.</p>
+
+<p><strong>(a) Fix n in advance and don't peek.</strong> Use the power formula to choose n, run to n, look once. This is the right default for release gates and one-shot model comparisons, and its only cost is discipline. Boring is a feature: most eval decisions do not actually need to be made mid-run.</p>
+
+<p><strong>(b) A few planned looks, with an alpha budget.</strong> If you genuinely need the option to stop early — the clinical-trials situation, where continuing a bad arm has real costs — you can split your 5% error budget across a small number of pre-scheduled looks, paying a stricter threshold at each. The two classic spending schedules differ in temperament: <strong>Pocock</strong> spreads the budget evenly, so every look pays the same moderately raised bar (roughly z = 2.4 instead of 1.96 for five looks); <strong>O'Brien–Fleming</strong> spends almost nothing early — the first looks demand overwhelming evidence, so only monster effects end the experiment ahead of schedule — and in exchange the final look costs nearly the full 1.96. Medicine settled this machinery in the 1970s; an eval program that re-tests at three planned checkpoints can borrow it wholesale.</p>
+
+<p><strong>(c) Continuous monitoring, licensed: mSPRT and e-values.</strong> If people are going to watch the dashboard every day — and they are — use a statistic that's designed to be watched. Instead of a p-value, which is calibrated for exactly one look, you maintain a running likelihood ratio: an <strong>evidence meter</strong> that tracks how much better "the models differ" explains the data so far than "they're identical." The betting intuition: under the null hypothesis this meter is your wealth in a fair casino, and a fair casino doesn't let your wealth multiply 20-fold with more than 1-in-20 probability — <em>ever</em>, at any time, under any stopping rule. So "declare a difference when the meter hits 20" keeps the 5% guarantee no matter how often you look or why you stop. The price is real: by n = 500 in the simulator, the meter demands the equivalent of z ≈ 3.5 where a fixed-n test asks 1.96 — always-valid inference buys the anytime license with power. Commercial A/B platforms adopted this a decade ago (Optimizely's engine is an mSPRT, from Johari, Pekelis &amp; Walsh); eval tooling, as far as I can tell, has not caught up. The third counter in the simulator is a working one.</p>
+
+<p>Choosing between them is part 2's question again. A gate that runs once per release: fix n. A comparison where early stopping has genuine value and you can pre-schedule looks: alpha spending. A living dashboard that the whole team will glance at daily no matter what you tell them: always-valid statistics — because if the tooling shows a plain p-value over accumulating data, people <em>will</em> peek, and the fix is to design for the humans you have rather than the discipline you wish they had.</p>
+
+<h2>The sensor inside the instrument</h2>
+
+<p>Everything in this post assumed the score itself is trustworthy: an answer is right or wrong, a test passes or fails, and the only noise is which questions you sampled and when you stopped. Power analysis tells you how many readings to take. It says nothing about whether the sensor taking them is lying. Most product evals put a judgment call between the model's output and the number — a human rater, or an LLM playing one — and that sensor has its own noise, its own biases, and its own drift. The next post is about treating humans as what they are: the measurement instrument inside the measurement instrument, with agreement statistics, a paradox that makes high agreement meaningless, and the case for rubric surgery.</p>
+
+<h2>What this means for your eval</h2>
+
+<ul class="eb-checklist">
+  <li>Before collecting anything, write down Δ — the smallest difference that would change the decision. Then size the eval: <strong>n ≈ 15.7·p(1−p)/Δ²</strong> unpaired, <strong>n ≈ 7.85·d/Δ²</strong> paired.</li>
+  <li>Run both models on the <strong>same questions</strong> and keep the per-question grid. Test the discordant counts (McNemar) — typically 3–10× cheaper than comparing two toplines.</li>
+  <li>Know your discordant rate d. It's the exchange rate of the paired design, and it's measurable from any past pair of runs.</li>
+  <li>Commit to a <strong>stopping rule before the first batch</strong>: fixed n, planned looks with an alpha budget, or an always-valid method. "Stop when it goes significant" is not on the menu.</li>
+  <li>If a dashboard displays running significance over accumulating data, treat its positives as ~30%-false until proven otherwise — or switch the dashboard to an e-value/mSPRT meter.</li>
+  <li>A 20–50 task agent eval detects ~20+ point differences. That's a legitimate smoke detector — label it as one, and don't staple 2-point claims to it.</li>
+</ul>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>Evan Miller (Anthropic), <a href="https://arxiv.org/pdf/2411.00640">Adding Error Bars to Evals</a> (2024) — recommendation 4 (paired differences) and 5 (power analysis) are this post's starting points.</li>
+  <li>Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/stats-llm-evals">Applying Statistics to LLM Evaluations</a> (2026) — full derivation of the power formula, with code.</li>
+  <li>Ian Arawjo et al., <a href="https://statsforevals.com">statsforevals.com</a> — living reference for test and interval selection.</li>
+  <li>Evan Miller, <a href="https://www.evanmiller.org/how-not-to-run-an-ab-test.html">How Not to Run an A/B Test</a> (2010) — the classic on peeking; substitute "eval batch" for "visitor" and it reads as written yesterday.</li>
+  <li>Johari, Pekelis &amp; Walsh, <a href="https://arxiv.org/abs/1512.04922">Always Valid Inference: Bringing Sequential Analysis to A/B Testing</a> (2015) — the mSPRT machinery behind commercial A/B platforms.</li>
+  <li>Anthropic, <a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Demystifying Evals for AI Agents</a> (2026) — the 20–50-task reality this post sizes honestly.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-meta">Beyond Error Bars · Part 4 of 9 · Previous: <a href="/build/error-bars-applied">Error Bars, Applied</a> · Next: <a href="/build/humans-are-instruments-rater-ops-is-the-eval">Humans Are Instruments</a></p>
+<p class="eb-footer-note">Views mine.</p>
