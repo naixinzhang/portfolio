@@ -1,7 +1,7 @@
 ---
 title: "An Eval Is a Decision Instrument"
 description: "Not a score generator: a measurement instrument built to feed a specific decision — and every design choice should be derived backwards from that decision."
-date: 2026-07-16
+date: 2026-06-08
 draft: false
 ---
 
@@ -10,40 +10,37 @@ draft: false
   Anatomy widget: all five panels filled from follow-up captures (2026-07-16).
   All links resolved. Purpose-card line icons added.
 -->
-
-<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
-
 <aside class="eb-tldr">
   <p class="eb-tldr-label">TL;DR</p>
-  <p><strong>In one line:</strong> An eval isn't a score generator — it's a measurement instrument built to feed one specific decision, and most eval fights are really fights about what that decision is.</p>
-  <p><strong>You should care if:</strong> your team reports eval numbers nobody acts on, or argues about whether an eval is "good."</p>
-  <p><strong>Do this today:</strong> write one sentence naming the decision your main eval feeds. If you can't, that's the finding.</p>
+  <p><strong>In one line:</strong> An eval isn’t a score generator — it’s a measurement instrument built to feed one specific decision, and most eval fights are really fights about what that decision is.</p>
+  <p><strong>You should care if:</strong> your team reports eval numbers nobody acts on, or argues about whether an eval is “good.”</p>
+  <p><strong>Do this today:</strong> write one sentence naming the decision your main eval feeds. If you can’t, that’s the finding.</p>
 </aside>
 
 <h2>The same model, three verdicts</h2>
 
 <p>A few months ago I watched a model get three different report cards in the same week.</p>
 
-<p>On the team's internal benchmark, the new checkpoint scored 84%, four points above the incumbent. On a public leaderboard, it ranked behind two models that our benchmark said it beat. And in a small pilot with actual users, people quietly preferred the old version — the new one's answers were technically better and somehow more annoying.</p>
+<p>On the team’s internal benchmark, the new checkpoint scored 84%, four points above the incumbent. On a public leaderboard, it ranked behind two models that our benchmark said it beat. And in a small pilot with actual users, people quietly preferred the old version — the new one’s answers were technically better and somehow more annoying.</p>
 
-<p>Nobody involved was incompetent and no eval was "wrong." The three evals were measuring three different things: performance on a curated task distribution, performance on someone else's task distribution, and whether real humans in a real workflow wanted to keep using the thing. The mistake — and I've made it myself — is talking about "how good the model is" as if that's one number that these three instruments estimate with different amounts of noise. It isn't. They measure different constructs, for different decisions.</p>
+<p>Nobody involved was incompetent and no eval was “wrong.” The three evals were measuring three different things: performance on a curated task distribution, performance on someone else’s task distribution, and whether real humans in a real workflow wanted to keep using the thing. The mistake — and I’ve made it myself — is talking about “how good the model is” as if that’s one number that these three instruments estimate with different amounts of noise. It isn’t. They measure different constructs, for different decisions.</p>
 
-<p>Percy Liang opens his Stanford <a href="https://cs336.stanford.edu/lectures/?trace=lecture_12">evaluation lecture</a> with the cleanest statement of this problem I've seen: evaluation is the challenge of turning an <a href="https://cs336.stanford.edu/lectures/?trace=lecture_12">abstract construct into a concrete metric</a>. That's not an engineering observation. That's the founding problem of measurement science — psychometrics has been chewing on it for a century, and survey methodology, clinical trials, and econometrics all grew their machinery around it. Data scientists inherit that toolbox. This series is about applying it to LLM evals.</p>
+<p>Percy Liang opens his Stanford <a href="https://cs336.stanford.edu/lectures/?trace=lecture_12">evaluation lecture</a> with the cleanest statement of this problem I’ve seen: evaluation is the challenge of turning an <a href="https://cs336.stanford.edu/lectures/?trace=lecture_12">abstract construct into a concrete metric</a>. That’s not an engineering observation. That’s the founding problem of measurement science — psychometrics has been chewing on it for a century, and survey methodology, clinical trials, and econometrics all grew their machinery around it. Data scientists inherit that toolbox. This series is about applying it to LLM evals.</p>
 
 <p>But before any statistics, you have to answer a pre-statistical question: <em>what is this eval for?</em></p>
 
 <h2>What is this number going to decide?</h2>
 
-<p>Liang's lecture lists four purposes an evaluation can serve, and they're worth keeping on a sticky note:</p>
+<p>Liang’s lecture lists four purposes an evaluation can serve, and they’re worth keeping on a sticky note:</p>
 
 <ol class="eb-series">
   <li><strong>Adoption decisions.</strong> Someone is choosing model A or model B for a use case. The eval is a purchase recommendation.</li>
-  <li><strong>Capability measurement.</strong> Researchers want to know what models can do — the "science of AI progress" purpose.</li>
+  <li><strong>Capability measurement.</strong> Researchers want to know what models can do — the “science of AI progress” purpose.</li>
   <li><strong>Benefit and harm assessment.</strong> Policy, safety, and business risk — what damage could this system do, to whom?</li>
-  <li><strong>Development feedback.</strong> The tightest loop: is yesterday's change an improvement or a regression?</li>
+  <li><strong>Development feedback.</strong> The tightest loop: is yesterday’s change an improvement or a regression?</li>
 </ol>
 
-<p><em>Working at an eval vendor, I'd add a fifth from lived experience:</em></p>
+<p><em>Working at an eval vendor, I’d add a fifth from lived experience:</em></p>
 
 <ol class="eb-series" start="5">
   <li><em><strong>Acceptance.</strong> Two organizations agree that work is complete, or a dataset is good enough, or a system is ready to ship, when the eval says so. The eval is part of a contract — sometimes literally, with agreement thresholds and audit rights written into the deal. When quality has a price attached, the eval stops being a dashboard and becomes the referee.</em></li>
@@ -60,7 +57,7 @@ draft: false
   <p class="eb-caption">Same eval, five masters — it cannot serve them all well, and unstated purpose is where eval arguments are born.</p>
 </figure>
 
-<p>The reason to enumerate purposes isn't taxonomy for its own sake. It's that <strong>the same eval cannot serve all of them well</strong>, and unstated purpose is the root cause of most eval arguments I've sat through. A benchmark tuned for capability measurement (hard, discriminative, adversarially refreshed) makes a terrible regression suite (you want stable, sensitive, cheap). A preference arena is a fine adoption signal and a useless development loop — by the time your Elo moves, you've shipped six versions. When two people disagree about whether an eval is "good," ask them what decision it feeds. Half the time they'll discover they're not disagreeing at all; they're building two different instruments and calling them by one name.</p>
+<p>The reason to enumerate purposes isn’t taxonomy for its own sake. It’s that <strong>the same eval cannot serve all of them well</strong>, and unstated purpose is the root cause of most eval arguments I’ve sat through. A benchmark tuned for capability measurement (hard, discriminative, adversarially refreshed) makes a terrible regression suite (you want stable, sensitive, cheap). A preference arena is a fine adoption signal and a useless development loop — by the time your Elo moves, you’ve shipped six versions. When two people disagree about whether an eval is “good,” ask them what decision it feeds. Half the time they’ll discover they’re not disagreeing at all; they’re building two different instruments and calling them by one name.</p>
 
 <h2>The anatomy: five components, five silent assumptions</h2>
 
@@ -91,38 +88,38 @@ draft: false
       </div>
       <div class="eb-era-panel" id="eb-panel-task">
         <p><span class="eb-k">Silent assumption:</span> everyone reports against the same rules of the game.</p>
-        <p>Failure mode: an agent benchmark where the scaffold — not the model — is doing the heavy lifting, compared against a bare model run. Methods vs. models: say which you're evaluating.</p>
+        <p>Failure mode: an agent benchmark where the scaffold — not the model — is doing the heavy lifting, compared against a bare model run. Methods vs. models: say which you’re evaluating.</p>
       </div>
       <div class="eb-era-panel" id="eb-panel-scorer">
         <p><span class="eb-k">Silent assumption:</span> the scorer itself is accurate — the sensor inside the instrument is calibrated.</p>
-        <p>Failure mode: an LLM judge that quietly rewards verbosity, or unit tests that cover half the behavior. The scorer is an instrument inside the instrument (parts <a href="/build/humans-are-instruments-rater-ops-is-the-eval">5</a>–<a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">6</a>).</p>
+        <p>Failure mode: an LLM judge that quietly rewards verbosity, or unit tests that cover half the behavior. The scorer is an instrument inside the instrument (parts <a href="/blog/humans-are-instruments-rater-ops-is-the-eval">5</a>–<a href="/blog/your-llm-judge-is-a-biased-noisy-instrument-debias-it">6</a>).</p>
       </div>
       <div class="eb-era-panel" id="eb-panel-aggregation">
         <p><span class="eb-k">Silent assumption:</span> examples are exchangeable and equally important — so a plain mean is meaningful.</p>
-        <p>Failure mode: 40% of items come from one template or document. Clustered items lie about your effective sample size (<a href="/build/error-bars-applied">part 3</a>), and a mean overweights easy traffic.</p>
+        <p>Failure mode: 40% of items come from one template or document. Clustered items lie about your effective sample size (<a href="/blog/error-bars-applied">part 3</a>), and a mean overweights easy traffic.</p>
       </div>
       <div class="eb-era-panel" id="eb-panel-rule">
         <p><span class="eb-k">Silent assumptions (two):</span> a difference big enough to act on exceeds the noise — and the score means what it says numerically.</p>
-        <p>Failure mode: thresholding a score with great AUROC but compressed probabilities. Discrimination ≠ calibration (<a href="/build/building-a-product-eval-instrumented">part 9</a>). If the rule uses the value, check calibration.</p>
-        <p><span class="eb-k">The arrow into the decision</span> — four questions to answer in writing before building anything: What decision does this number feed? · What's the baseline? · What's the cost of each error direction? · What movement would change someone's behavior?</p>
+        <p>Failure mode: thresholding a score with great AUROC but compressed probabilities. Discrimination ≠ calibration (<a href="/blog/building-a-product-eval-instrumented">part 9</a>). If the rule uses the value, check calibration.</p>
+        <p><span class="eb-k">The arrow into the decision</span> — four questions to answer in writing before building anything: What decision does this number feed? · What’s the baseline? · What’s the cost of each error direction? · What movement would change someone’s behavior?</p>
       </div>
     </div>
   </div>
 
-  <p class="eb-caption">Tap a component to pin its assumption. "Our eval is wrong" is almost never true of the whole — it's one of these five violating its assumption.</p>
+  <p class="eb-caption">Tap a component to pin its assumption. “Our eval is wrong” is almost never true of the whole — it’s one of these five violating its assumption.</p>
 </figure>
 
-<p><strong>1. The dataset.</strong> A set of examples, standing in for the traffic you actually care about. <em>Silent assumption: these examples are drawn from — or at least representative of — the distribution the decision is about.</em> The polite word for violating this is "sampling bias"; the everyday version is building your eval set from the tickets that were easy to export. And the dataset is a <em>sample</em>, which means everything computed from it has sampling error — the entire subject of the next post.</p>
+<p><strong>1. The dataset.</strong> A set of examples, standing in for the traffic you actually care about. <em>Silent assumption: these examples are drawn from — or at least representative of — the distribution the decision is about.</em> The polite word for violating this is “sampling bias”; the everyday version is building your eval set from the tickets that were easy to export. And the dataset is a <em>sample</em>, which means everything computed from it has sampling error — the entire subject of the next post.</p>
 
-<p><strong>2. The task definition.</strong> What, exactly, is the system asked to do — and what counts as the system? Model alone? Model plus retrieval? Model plus prompt? Plus the agent scaffold? <em>Silent assumption: everyone reports against the same rules.</em> Liang makes a distinction I've started using constantly: pre-foundation-model ML evaluated <strong>methods</strong> on fixed datasets; modern evals mostly evaluate <strong>models or whole systems</strong>, where anything goes — and agent benchmarks quietly measure the scaffold as much as the model inside it.</p>
+<p><strong>2. The task definition.</strong> What, exactly, is the system asked to do — and what counts as the system? Model alone? Model plus retrieval? Model plus prompt? Plus the agent scaffold? <em>Silent assumption: everyone reports against the same rules.</em> Liang makes a distinction I’ve started using constantly: pre-foundation-model ML evaluated <strong>methods</strong> on fixed datasets; modern evals mostly evaluate <strong>models or whole systems</strong>, where anything goes — and agent benchmarks quietly measure the scaffold as much as the model inside it.</p>
 
-<p><strong>3. The scoring function.</strong> The thing that turns a response into a number: exact match, unit tests, a rubric, a human rater, an LLM judge. <em>Silent assumption: the scorer itself is accurate.</em> Exact match assumes one correct surface form. Unit tests assume the tests cover the behavior. Human raters assume humans agree (part 5 is about how much they don't). LLM judges assume the judge shares your definition of good (part 6 is about measuring — and correcting — how much it doesn't). The scoring function is an instrument inside the instrument, and it is almost never calibrated before use.</p>
+<p><strong>3. The scoring function.</strong> The thing that turns a response into a number: exact match, unit tests, a rubric, a human rater, an LLM judge. <em>Silent assumption: the scorer itself is accurate.</em> Exact match assumes one correct surface form. Unit tests assume the tests cover the behavior. Human raters assume humans agree (part 5 is about how much they don’t). LLM judges assume the judge shares your definition of good (part 6 is about measuring — and correcting — how much it doesn’t). The scoring function is an instrument inside the instrument, and it is almost never calibrated before use.</p>
 
-<p><strong>4. The aggregation.</strong> Almost always: take the mean. <em>Silent assumption: the examples are exchangeable and equally important.</em> A mean over an eval set where 40% of items came from one document, one client, or one template is not measuring what you think it's measuring — items cluster, and clustered items lie about your effective sample size (part 3). A mean also weights the easy 80% of traffic over the hard 20% your users actually complain about.</p>
+<p><strong>4. The aggregation.</strong> Almost always: take the mean. <em>Silent assumption: the examples are exchangeable and equally important.</em> A mean over an eval set where 40% of items came from one document, one client, or one template is not measuring what you think it’s measuring — items cluster, and clustered items lie about your effective sample size (part 3). A mean also weights the easy 80% of traffic over the hard 20% your users actually complain about.</p>
 
-<p><strong>5. The decision rule.</strong> The threshold, the comparison, the gate: <em>ship if above 0.8; block the PR if it regresses; pick the higher scorer.</em> Two silent assumptions here, and they're my favorites because this is where I've been personally burned. First: <em>that a difference big enough to act on is bigger than the noise</em> — the entire subject of parts 3 and 4. Second, subtler: <em>that the score means what it says numerically.</em> I own a quality-prediction model at work whose ranking is genuinely good — its AUROC would look respectable anywhere — and whose raw probabilities were, for a stretch, nearly useless: compressed into the bottom half of the [0,1] range, so any downstream consumer that applied a <em>threshold</em> rather than a <em>ranking</em> was effectively thresholding noise. Discrimination and calibration are different properties. An eval score can order systems correctly and still be numerically untrustworthy — part 9 walks through that story properly. For now, the rule of thumb: if your decision rule uses the score's <em>value</em> (not just comparisons between systems), you've assumed calibration, and you should check it.</p>
+<p><strong>5. The decision rule.</strong> The threshold, the comparison, the gate: <em>ship if above 0.8; block the PR if it regresses; pick the higher scorer.</em> Two silent assumptions here, and they’re my favorites because this is where I’ve been personally burned. First: <em>that a difference big enough to act on is bigger than the noise</em> — the entire subject of parts 3 and 4. Second, subtler: <em>that the score means what it says numerically.</em> I own a quality-prediction model at work whose ranking is genuinely good — its AUROC would look respectable anywhere — and whose raw probabilities were, for a stretch, nearly useless: compressed into the bottom half of the [0,1] range, so any downstream consumer that applied a <em>threshold</em> rather than a <em>ranking</em> was effectively thresholding noise. Discrimination and calibration are different properties. An eval score can order systems correctly and still be numerically untrustworthy — part 9 walks through that story properly. For now, the rule of thumb: if your decision rule uses the score’s <em>value</em> (not just comparisons between systems), you’ve assumed calibration, and you should check it.</p>
 
-<p>That's the whole machine: <strong>dataset → task → scorer → aggregation → decision rule.</strong> Five choices. The reason I insist on the decomposition is that "our eval is wrong" is almost never true of the eval as a whole — it's one of the five components violating its silent assumption, and they fail differently and get fixed differently.</p>
+<p>That’s the whole machine: <strong>dataset → task → scorer → aggregation → decision rule.</strong> Five choices. The reason I insist on the decomposition is that “our eval is wrong” is almost never true of the eval as a whole — it’s one of the five components violating its silent assumption, and they fail differently and get fixed differently.</p>
 
 <h2>Two instruments that look identical and share nothing</h2>
 
@@ -148,30 +145,30 @@ draft: false
       <p class="eb-versus-enemy"><span class="eb-versus-k">mortal enemy</span><br><strong>drift</strong></p>
     </div>
   </div>
-  <p class="eb-caption">Two instruments, one file format. Say which one you're building before you argue about how to build it.</p>
+  <p class="eb-caption">Two instruments, one file format. Say which one you’re building before you argue about how to build it.</p>
 </figure>
 
-<p><em>A capability benchmark</em> (MMLU, GPQA, SWE-bench) measures a <strong>model</strong> against a fixed population of tasks. Its purpose is comparison across models and time, so its cardinal virtues are comparability and difficulty, and its mortal enemy is <strong>contamination</strong> — the moment test items leak into training data, the instrument silently stops measuring capability and starts measuring memorization. Hence the arms race of private splits, fresh-item pipelines, and "verified" cleanups.</p>
+<p><em>A capability benchmark</em> (MMLU, GPQA, SWE-bench) measures a <strong>model</strong> against a fixed population of tasks. Its purpose is comparison across models and time, so its cardinal virtues are comparability and difficulty, and its mortal enemy is <strong>contamination</strong> — the moment test items leak into training data, the instrument silently stops measuring capability and starts measuring memorization. Hence the arms race of private splits, fresh-item pipelines, and “verified” cleanups.</p>
 
 <p><em>A product eval</em> measures a <strong>system</strong> — your model, your prompts, your retrieval, your guardrails — against <strong>your traffic</strong>. Nobody else will ever run it, so comparability across organizations is worth nothing; what matters is <strong>representativeness</strong>, and its mortal enemy is <strong>drift</strong>: your users change, your traffic mix changes, and an eval set frozen in January is quietly measuring a product that no longer exists by June.</p>
 
-<p>Almost every eval sin I've witnessed is a category error between these two. Teams adopt a public benchmark as their product gate because it's rigorous (it's rigorous about <em>someone else's distribution</em>). Teams obsess over contamination in an eval set built from their own private tickets (their real enemy is drift, which nobody assigned an owner). <a href="https://hamel.dev/blog/posts/evals/">Hamel Husain's writing on product evals</a> — the best of the process canon — is entirely about the second instrument; leaderboard discourse is entirely about the first. Say which one you're building before you argue about how to build it.</p>
+<p>Almost every eval sin I’ve witnessed is a category error between these two. Teams adopt a public benchmark as their product gate because it’s rigorous (it’s rigorous about <em>someone else’s distribution</em>). Teams obsess over contamination in an eval set built from their own private tickets (their real enemy is drift, which nobody assigned an owner). <a href="https://hamel.dev/blog/posts/evals/">Hamel Husain’s writing on product evals</a> — the best of the process canon — is entirely about the second instrument; leaderboard discourse is entirely about the first. Say which one you’re building before you argue about how to build it.</p>
 
 <h2>Design it backwards</h2>
 
-<p>Here's the discipline I've settled on, learned partly from watching eval design reviews at work and partly from getting it wrong: <strong>start from the decision and derive the eval backwards.</strong> Before assembling any dataset, answer four questions in writing:</p>
+<p>Here’s the discipline I’ve settled on, learned partly from watching eval design reviews at work and partly from getting it wrong: <strong>start from the decision and derive the eval backwards.</strong> Before assembling any dataset, answer four questions in writing:</p>
 
 <ol class="eb-series">
-  <li><strong>What decision does this number feed?</strong> Ship/no-ship? Model A vs B? Vendor acceptance? "We'll look at it" is not a decision; it's a dashboard.</li>
-  <li><strong>What's the baseline?</strong> What happens today, without the system — or with the incumbent? A 62% score is meaningless until you know whether the status quo is 40% or 85%.</li>
-  <li><strong>What's the cost of each error direction?</strong> Acting wrongly versus failing to act. A hiring filter and a spam filter can have identical accuracy and wildly different acceptable failure modes.</li>
-  <li><strong>What movement would change someone's behavior?</strong> If a 3-point gain wouldn't alter anyone's plans, an eval that can only resolve 5-point differences is the wrong instrument — and one that resolves 1-point differences at 10× the cost is the wrong instrument too. This question — <em>the resolution you actually need</em> — sets your sample size, and it's the bridge into part 4.</li>
+  <li><strong>What decision does this number feed?</strong> Ship/no-ship? Model A vs B? Vendor acceptance? “We’ll look at it” is not a decision; it’s a dashboard.</li>
+  <li><strong>What’s the baseline?</strong> What happens today, without the system — or with the incumbent? A 62% score is meaningless until you know whether the status quo is 40% or 85%.</li>
+  <li><strong>What’s the cost of each error direction?</strong> Acting wrongly versus failing to act. A hiring filter and a spam filter can have identical accuracy and wildly different acceptable failure modes.</li>
+  <li><strong>What movement would change someone’s behavior?</strong> If a 3-point gain wouldn’t alter anyone’s plans, an eval that can only resolve 5-point differences is the wrong instrument — and one that resolves 1-point differences at 10× the cost is the wrong instrument too. This question — <em>the resolution you actually need</em> — sets your sample size, and it’s the bridge into part 4.</li>
 </ol>
 
 <figure class="eb-order">
   <figcaption class="eb-caption eb-order-title">the design order: derive each box from the one before it</figcaption>
   <ol class="eb-order-row">
-    <li><span class="eb-order-name">The decision</span><span class="eb-order-note">ship / don't ship?</span></li>
+    <li><span class="eb-order-name">The decision</span><span class="eb-order-note">ship / don’t ship?</span></li>
     <li><span class="eb-order-name">Resolution needed</span><span class="eb-order-note">the Δ that changes minds</span></li>
     <li><span class="eb-order-name">Dataset</span><span class="eb-order-note">whose traffic, what n</span></li>
     <li><span class="eb-order-name">Scorer</span><span class="eb-order-note">which sensor, validated</span></li>
@@ -180,9 +177,9 @@ draft: false
   <p class="eb-caption">Start from the decision; the eval falls out. Start from the eval and you get a dashboard.</p>
 </figure>
 
-<p>If you can't answer these, the fix isn't a better metric. It's a conversation with whoever owns the decision.</p>
+<p>If you can’t answer these, the fix isn’t a better metric. It’s a conversation with whoever owns the decision.</p>
 
-<p>One more thing I want to put on the record, because in three years of reading eval content I have almost never seen it written down: <strong>mature organizations review eval designs the way they review system designs.</strong> Where I work, eval plans go through design review — a standing meeting, written scorecards, versioned rubrics, the works. An eval that gates releases or acceptance is load-bearing infrastructure; it deserves the same scrutiny as a database migration. The entire public conversation is about <em>building</em> evals, and almost none of it is about <em>governing</em> them — who reviews the design, who owns the drift, who's allowed to change the rubric, and what happens to historical comparability when they do. If your evals matter, they need an owner and a change process, not just a dashboard.</p>
+<p>One more thing I want to put on the record, because in three years of reading eval content I have almost never seen it written down: <strong>mature organizations review eval designs the way they review system designs.</strong> Where I work, eval plans go through design review — a standing meeting, written scorecards, versioned rubrics, the works. An eval that gates releases or acceptance is load-bearing infrastructure; it deserves the same scrutiny as a database migration. The entire public conversation is about <em>building</em> evals, and almost none of it is about <em>governing</em> them — who reviews the design, who owns the drift, who’s allowed to change the rubric, and what happens to historical comparability when they do. If your evals matter, they need an owner and a change process, not just a dashboard.</p>
 
 <h2>Instruments have spec sheets</h2>
 
@@ -192,22 +189,22 @@ draft: false
   <li><strong>Variance.</strong> Run it twice, get different numbers. How different? <em>(Part 3.)</em></li>
   <li><strong>Resolution.</strong> The smallest real difference it can reliably detect — set by sample size and design. <em>(Part 4.)</em></li>
   <li><strong>Rater reliability.</strong> When humans are the sensor, how much of the signal is the humans? <em>(Part 5.)</em></li>
-  <li><strong>Scorer bias.</strong> When an LLM is the sensor, it's a biased one — measurably, correctably biased. <em>(Part 6 — where this series has been heading all along.)</em></li>
+  <li><strong>Scorer bias.</strong> When an LLM is the sensor, it’s a biased one — measurably, correctably biased. <em>(Part 6 — where this series has been heading all along.)</em></li>
   <li><strong>Comparative validity.</strong> When instruments rank systems, when do the rankings deserve belief? <em>(Part 7.)</em></li>
   <li><strong>Behavior under repetition.</strong> Agent evals: reliability versus capability, and the statistics of running things k times. <em>(Part 8.)</em></li>
   <li><strong>Assembly and maintenance.</strong> Building the whole instrument end to end, and keeping it honest after it ships. <em>(Part 9.)</em></li>
 </ol>
 
-<p>The rest of this series is that spec sheet, one property at a time, with interactive demos so you can develop intuition instead of taking my word for things. Next up: your eval score is a random variable — error bars, the clustering trap, and why five models tied for first place is an honest leaderboard's natural condition.</p>
+<p>The rest of this series is that spec sheet, one property at a time, with interactive demos so you can develop intuition instead of taking my word for things. Next up: your eval score is a random variable — error bars, the clustering trap, and why five models tied for first place is an honest leaderboard’s natural condition.</p>
 
 <h2>What this means for your eval</h2>
 
 <ul class="eb-checklist">
-  <li>Write down the <strong>decision</strong> your eval feeds and the <strong>construct</strong> it claims to measure. One sentence each. If you can't, stop building and go ask.</li>
+  <li>Write down the <strong>decision</strong> your eval feeds and the <strong>construct</strong> it claims to measure. One sentence each. If you can’t, stop building and go ask.</li>
   <li>Classify it: <strong>capability benchmark or product eval.</strong> Then name its enemy — contamination or drift — and give that enemy an owner.</li>
   <li>Audit the five components against their silent assumptions: dataset representative? task rules stated? scorer validated? aggregation cluster-aware? decision rule calibration-checked?</li>
-  <li>Fix the <strong>decision rule before collecting data</strong> — thresholds chosen after seeing results aren't decision rules, they're rationalizations.</li>
-  <li>If the score's numeric value (not just its ranking) drives the decision, <strong>check calibration</strong> — good AUROC does not mean trustworthy probabilities.</li>
+  <li>Fix the <strong>decision rule before collecting data</strong> — thresholds chosen after seeing results aren’t decision rules, they’re rationalizations.</li>
+  <li>If the score’s numeric value (not just its ranking) drives the decision, <strong>check calibration</strong> — good AUROC does not mean trustworthy probabilities.</li>
   <li>If the eval gates anything that matters, give it <strong>governance</strong>: an owner, a versioned rubric, and a review before it changes.</li>
 </ul>
 
@@ -223,5 +220,5 @@ draft: false
 
 <hr class="eb-rule">
 
-<p class="eb-footer-meta">Beyond Error Bars · Part 2 of 9 · Previous: <a href="/build/every-eval-era-created-the-next-measurement-problem">Every Eval Era Created the Next Measurement Problem</a> · Next: <a href="/build/error-bars-applied">Error Bars, Applied</a></p>
+<p class="eb-footer-meta">Beyond Error Bars · Part 2 of 9 · Previous: <a href="/blog/every-eval-era-created-the-next-measurement-problem">Every Eval Era Created the Next Measurement Problem</a> · Next: <a href="/blog/error-bars-applied">Error Bars, Applied</a></p>
 <p class="eb-footer-note">Written by a data scientist who builds and lives with evals for a living. Views mine.</p>

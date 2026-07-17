@@ -12,7 +12,7 @@ export default function BuildPage() {
         <span className="font-mono text-[13px] text-[var(--muted)] shrink-0 w-[6.5rem] tabular-nums">
           2026-06-01
         </span>
-        <p className="font-serif text-[16px] leading-[1.55] text-[var(--foreground)]">
+        <p className="font-serif text-[17px] leading-[1.6] text-[var(--foreground)]">
           Beyond Error Bars
           <span className="text-[var(--muted)]">
             {" "}
@@ -21,17 +21,17 @@ export default function BuildPage() {
         </p>
       </div>
 
-      <ul className="mt-6 pl-[6.5rem]">
+      <ul className="mt-8 pl-[6.5rem]">
         {posts.map((post, i) => (
           <li key={post.slug}>
             <Link
               href={`/blog/${post.slug}`}
-              className="group flex gap-4 items-baseline py-[3px]"
+              className="group flex gap-4 items-baseline py-1.5"
             >
               <span className="font-mono text-[13px] text-[var(--muted)] shrink-0 w-14 tabular-nums">
                 Part {i + 1}
               </span>
-              <span className="font-serif text-[16px] leading-[1.55] font-light text-[var(--foreground)] transition-opacity duration-200 group-hover:opacity-50">
+              <span className="font-serif text-[17px] leading-[1.6] text-[var(--foreground)] transition-opacity duration-200 group-hover:opacity-50">
                 {post.title}
               </span>
             </Link>
