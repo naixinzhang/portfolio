@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { allSlugs } from "./blog/posts";
 import { CATEGORIES } from "./outside/categories";
 
-const BASE = "https://naixin.dev";
+const BASE = "https://naixinzhang.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const fixed = ["", "/blog", "/outside"];
