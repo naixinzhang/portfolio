@@ -1,0 +1,166 @@
+---
+title: "Agent Evals: the Statistics of pass@k and pass^k"
+description: "The demo said eight for eight; production says one in three fails. Both are true — they're different statistics. pass@k measures capability, pass^k measures reliability, and the error bars on both are the part nobody computes."
+date: 2026-07-22
+draft: false
+---
+
+<!--
+  TRANSCRIBED FROM SCREENSHOTS (Documents/blog/post8) — 2026-07-16.
+  Original: Documents/eval study/html/post-08.html on the other laptop.
+
+  KNOWN GAPS:
+  1. THE PASS@K EXPLORER is a live JS demo. Tab 1 "The two curves"
+     (sliders: task mix, attempts k; capability vs reliability curves, gap
+     readout). Tab 2 "Budget allocator" (sliders: total budget B, runs per task n;
+     SE-vs-n curve, sweet spot, Resample sims). CANNOT be static HTML. Marked
+     .eb-sim-placeholder with both tab states + fit details recorded.
+-->
+
+<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> "Can the agent do it" (pass@k) and "does it do it every time" (pass^k) are different metrics from the same runs — and the gap between them is the demo-to-product gap.</p>
+  <p><strong>You should care if:</strong> you demo agents that pass in the meeting and flake in production.</p>
+  <p><strong>Do this today:</strong> report pass@1, pass@k, and pass^k together once — the divergence will start the right conversation.</p>
+</aside>
+
+<h2>Eight for eight in the meeting</h2>
+
+<p>I watched an agent demo go eight for eight. A multi-step research agent — browser, tools, the works — ran its showcase workflow in front of the room and landed it every time. The room was sold. Three weeks into the pilot, the first honest number came back: users were running the same kind of workflow once each, and for about a third of them it fell over.</p>
+
+<p>Nobody faked anything. The meeting saw the agent's best task under its best conditions — warm caches, pinned dependency versions, a scenario that had survived a week of rehearsal in which the attempts that failed quietly shaped which task got demoed. Attempts are cheap, and you schedule the meeting after a good rehearsal. Production users, meanwhile, ran an average task exactly once, cold. The demo was evidence about whether the agent <strong>can ever do it</strong>; production measured whether it <strong>does it every time.</strong> Those are two legitimate statistics — capability and reliability — with a formula-sized gap between them, and agent evals have names for both.</p>
+
+<h2>One probability, two exponents</h2>
+
+<p>Start from the per-task truth. Every task <em>t</em> has a true per-attempt success probability <code>p_t</code>: the chance a single fresh attempt succeeds, marginalizing over everything that wobbles between attempts — sampling temperature, tool nondeterminism, the harness's mood. Everything in this post is an aggregate of <code>p_t</code> over your task suite, and the whole family differs only in what you do to it before averaging:</p>
+
+<ol class="eb-series">
+  <li><strong>pass@1</strong> <code>= E[p_t]</code>. Average single-attempt success. This is the production number when users try once.</li>
+  <li><strong>pass@k</strong> <code>= E[1 − (1 − p_t)^k]</code>. The probability that <em>at least one</em> of k attempts succeeds. This is <strong>capability</strong>, and it is monotonically flattering: it can only grow with k, and any task with nonzero <code>p_t</code> eventually "passes."</li>
+  <li><strong>pass^k</strong> <code>= E[p_t^k]</code>. The probability that <em>all k</em> of k attempts succeed. This is <strong>reliability</strong>, and it is monotonically brutal: a task the agent gets right 90% of the time is a 43% task at k = 8.</li>
+</ol>
+
+<figure class="eb-passcards">
+  <p class="eb-eras-title">One task · eight attempts</p>
+  <div class="eb-attempts"><span class="eb-att eb-att-pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span class="eb-att eb-att-pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span class="eb-att eb-att-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span><span class="eb-att eb-att-pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span class="eb-att eb-att-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span><span class="eb-att eb-att-pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span class="eb-att eb-att-pass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span class="eb-att eb-att-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div>
+  <p class="eb-passcards-sum">5 of 8 attempts passed → p&#770; = 5/8 = .625</p>
+  <p class="eb-passcards-sum2">the same eight squares, summarized three ways</p>
+  <div class="eb-passcards-row">
+    <div class="eb-passcard"><p class="eb-passcard-name">pass@1</p><p class="eb-passcard-val">62.5%</p><p class="eb-passcard-note">one fresh attempt, averaged</p></div>
+    <div class="eb-passcard"><p class="eb-passcard-name">pass@8</p><p class="eb-passcard-val eb-passcard-cap">≈ 100%</p><p class="eb-passcard-note">capability — at least one of 8</p></div>
+    <div class="eb-passcard"><p class="eb-passcard-name">pass^8</p><p class="eb-passcard-val eb-passcard-rel">≈ 2%</p><p class="eb-passcard-note">reliability — all 8 of 8</p></div>
+  </div>
+  <p class="eb-caption">Same eight runs, three different truths — say which one you're reporting. (If the true per-attempt rate were 5/8: pass@8 = 1 − (3/8)⁸ ≈ 99.96%; pass^8 = (5/8)⁸ ≈ 2.3%.)</p>
+</figure>
+
+<p><strong>pass@k</strong> is the old Codex-paper metric for code generation, where you really could sample k candidates and keep any that passed the tests. <strong>pass^k</strong> is newer and came from the opposite pressure: Sierra's <a href="https://arxiv.org/abs/2406.12045">τ-bench</a> introduced it because customer-facing agents don't get k tries — every user gets one draw, and the business feels the consistency, not the best-of. Their headline finding was exactly the divergence: agents that looked respectable at k = 1 fell off a cliff by pass^8, and the follow-up <a href="https://arxiv.org/abs/2506.07982">τ²-bench</a> kept the metric front and center. Anthropic's <a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">agent-evals guidance</a> now treats reporting the pair as table stakes. One caveat to keep in your pocket: <code>p_t^k</code> treats the k attempts as independent draws from a stationary task — if your attempts share state (a cache, a polluted sandbox), you're measuring something else.</p>
+
+<p>Here is the part I want to insist on, because it's the reason to compute both rather than picking a favorite: <strong>the divergence between pass@k and pass^k is itself the measurement.</strong> A suite scoring pass@8 = 90% and pass^8 = 16% is not "an agent that works" or "an agent that doesn't" — it's an agent that is <em>capable but erratic</em>, and that is a different engineering problem than incapable. Capable-but-erratic points at verification, output selection, retry policy, tighter harnesses, lower temperature — ways to convert capability you already have into reliability. Low pass@k points at capability work: better models, better scaffolds, better tools. One subtraction tells you which roadmap you're on. The first tab of the explorer below lets you feel how the two curves pull apart as k grows, and how the task mix — not the model — controls the shape.</p>
+
+<h2>Estimating pass@k without fooling yourself</h2>
+
+<p>You never observe <code>p_t</code>. You run n attempts on task t, count c successes, and estimate. Two tempting estimators, one wasteful and one biased:</p>
+
+<p><strong>The grouping estimator.</strong> Chop your n runs into n/k disjoint groups, score each group 1 if it contains a success, average. Unbiased — each group is an honest Bernoulli draw of the pass@k event — but it throws away data: it treats your n runs as n/k coarse observations, ignoring that there are <code>C(n, k)</code> ways to choose k runs from n, not just the n/k you happened to draw as groups.</p>
+
+<p><strong>The plug-in estimator.</strong> Set <code>p̂ = c/n</code> and compute <code>1 − (1 − p̂)^k</code>. This one is biased, and the reason is two sentences of Jensen's inequality: <code>(1 − p)^k</code> is convex in p, so feeding it a noisy <code>p̂</code> inflates the failure term on average, which means the plug-in pass@k is <em>systematically too low</em> — and the shortfall grows exactly where you can least afford it, at small n and large k. The mirror argument runs through <code>p^k</code>, also convex, so the plug-in pass^k comes out systematically too <em>high</em>: optimistic, in the one metric whose entire job is pessimism.</p>
+
+<p>The fix has been in the literature since the Codex paper (<a href="https://arxiv.org/abs/2107.03374">Chen et al., 2021</a>, appendix). Run <code>n ≥ k</code> attempts, count c successes, and per task compute</p>
+
+<pre><code>pass@k̂ = 1 − C(n−c, k) / C(n, k)</code></pre>
+
+<p>then average over tasks. The reading is mechanical: of the <code>C(n, k)</code> ways to pick k runs out of your n, <code>C(n−c, k)</code> pick only failures — so this is exactly the fraction of k-subsets of your actual runs that contain at least one success. Averaging over all subsets instead of plugging in a point estimate is what kills the Jensen bias; formally it's a U-statistic, and <a href="https://leehanchung.github.io/blogs/2025/09/08/pass-at-k/">Han Lee's derivation</a> is the cleanest walkthrough of why the expectation comes out exact. The mirror estimator falls out of the same logic and deserves to be better known:</p>
+
+<pre><code>pass^k̂ = C(c, k) / C(n, k)</code></pre>
+
+<p>— the fraction of k-subsets that are <em>all</em> successes — is unbiased for <code>p_t^k</code>. One implementation note: compute those binomial coefficients as differences of log-gamma (log-factorials), never as raw factorials — <code>C(200, 10)</code> already ruins a double. The widget's source does it that way, formulas in the comments.</p>
+
+<figure class="eb-pkf">
+  <svg viewBox="0 0 1000 430" class="eb-pkf-svg" role="img" aria-label="pass at k equals 1 minus C(n minus c, k) over C(n, k)"><text x="300" y="210" font-size="30" font-weight="700" text-anchor="end"><tspan fill="var(--foreground)">pass@</tspan><tspan fill="#c9821f">k</tspan></text><text x="320" y="210" font-size="28" fill="var(--foreground)">= 1 &minus;</text><text x="700" y="188" font-size="28" font-weight="700" text-anchor="middle"><tspan fill="var(--foreground)">C(</tspan><tspan fill="#3b6fd4">n</tspan><tspan fill="var(--foreground)"> &minus; </tspan><tspan fill="#2f8f4e">c</tspan><tspan fill="var(--foreground)">, </tspan><tspan fill="#c9821f">k</tspan><tspan fill="var(--foreground)">)</tspan></text><line x1="590" y1="205" x2="810" y2="205" stroke="var(--foreground)" stroke-width="2"/><text x="700" y="246" font-size="28" font-weight="700" text-anchor="middle"><tspan fill="var(--foreground)">C(</tspan><tspan fill="#3b6fd4">n</tspan><tspan fill="var(--foreground)">, </tspan><tspan fill="#c9821f">k</tspan><tspan fill="var(--foreground)">)</tspan></text><text x="470" y="95" font-size="14" fill="var(--muted)" text-anchor="middle">turns &ldquo;all k fail&rdquo; into &ldquo;at least one succeeds&rdquo;</text><line x1="470" y1="108" x2="405" y2="185" stroke="var(--muted)" stroke-width="0.8"/><text x="835" y="168" font-size="14" fill="var(--muted)">ways to pick k runs</text><text x="835" y="188" font-size="14" fill="var(--muted)">that are all failures</text><line x1="825" y1="172" x2="765" y2="182" stroke="var(--muted)" stroke-width="0.8"/><text x="560" y="292" font-size="14" fill="var(--muted)" text-anchor="middle">every way to pick k of your n runs</text><line x1="620" y1="280" x2="685" y2="235" stroke="var(--muted)" stroke-width="0.8"/><circle cx="200" cy="360" r="6" fill="#3b6fd4"/><text x="214" y="365" font-size="14" fill="var(--muted)">n — runs you ran</text><circle cx="430" cy="360" r="6" fill="#2f8f4e"/><text x="444" y="365" font-size="14" fill="var(--muted)">c — successes you counted</text><circle cx="720" cy="360" r="6" fill="#c9821f"/><text x="734" y="365" font-size="14" fill="var(--muted)">k — the question you're asking</text></svg>
+  <p class="eb-caption">The combinatorial fix for a biased plug-in: average over every k-subset of your actual runs instead of feeding one noisy p&#770; through a convex formula.</p>
+</figure>
+
+<div data-sim="passk-explorer"></div>
+<h2>The error bar nobody computes</h2>
+
+<p>Everyone who writes about pass@k explains the estimator. Nobody puts an error bar on it — so let's. The aggregate pass@k is a sample mean <em>twice over</em>, because there are two nested sources of randomness: <strong>which tasks</strong> ended up in your suite (between-task), and <strong>which runs</strong> you happened to draw on each task (within-task — decoding noise, harness noise). An honest standard error must respect both. If you've read <a href="/build/error-bars-applied">part 3</a>, you already own the machinery: this is clustering, applied vertically. Each task is a cluster; your n runs are its items; treating the n·T runs as independent Bernoullis is the same fiction as pretending 120 questions from 12 documents were 120 independent draws.</p>
+
+<p>The recipe, in full:</p>
+
+<ol class="eb-series">
+  <li>Per task, compute the <strong>unbiased</strong> estimate <code>1 − C(n−c, k)/C(n, k)</code> from your n runs.</li>
+  <li>Aggregate: the suite pass@k is the mean of the per-task estimates over your T tasks.</li>
+  <li><strong>Bootstrap over tasks:</strong> resample T task IDs with replacement, recompute the mean of their per-task estimates, repeat ~1,000 times; the standard deviation of those means is your SE.</li>
+</ol>
+
+<p>Notice what you did <em>not</em> have to do: model the within-task noise explicitly. It rides along inside the per-task estimates — each one is already a noisy measurement of that task's true pass@k, so resampling tasks propagates both layers at once. That's the same reason part 3 resampled clusters rather than items.</p>
+
+<p>The recipe raises the budgeting question every agent team actually faces: with a fixed budget of B total runs, do you spend them on more tasks or more runs per task? The variance arithmetic gives a crisp answer. The within-task variance of the unbiased estimator falls steeply as n grows past k — for typical <code>p_t</code> it drops to a third or less of its n = k value by n = 2k, keeps improving usefully to about n = 3k, and then flattens; beyond that you are polishing a number whose uncertainty lives elsewhere. The between-task variance, meanwhile, shrinks only like 1/T and does not care how many times you reran each task. And at realistic suite sizes — the 20–50 tasks that Anthropic's guidance says agent evals actually have — between-task variance dominates the total almost immediately.</p>
+
+<p class="eb-aside"><em>The allocation heuristic: run each task n ≈ 2k–3k times, and spend every remaining run on new tasks. Go past 3k runs per task only when there are no more tasks left to buy.</em></p>
+
+<p>The second tab of the explorer makes this concrete. At the defaults — B = 1,200 runs, k = 3, a 200-task pool — the SE of the aggregate bottoms out at n = 6, exactly 2k, where the budget saturates the pool. Push runs-per-task to 24 (50 tasks) and the error bar grows by roughly two thirds on the same budget. Drop to n = 3 and you strand half the budget against the pool cap while roughly tripling the within-task noise. The curve's two bad directions fail differently, but they fail.</p>
+
+<h2>The environment is part of the instrument</h2>
+
+<p>Everything above quietly assumed <code>p_t</code> holds still while you measure it. Agents earn an extra failure mode here, because an agent task is defined partly by a live environment — and the environment is part of your instrument, whether you enrolled it or not. The mild version is <strong>harness flakiness</strong>: timeouts, sandbox hiccups, rate limits. That inflates within-task variance — your per-task estimates wobble for reasons that have nothing to do with the model — and if the flakiness correlates with task type (long-horizon tasks time out more), it stops being noise and starts being bias.</p>
+
+<p>The severe version is drift, and it's sneakier than it sounds. A pattern from a document-research agent eval I worked near: the facts the agent had to find were perfectly stationary — a company's fiscal-2024 revenue does not change — but the terrain the agent had to traverse to find them was not. Websites restructure, APIs version, data sources restate figures on their own schedule, search results reshuffle. Over months, a frozen question set silently degraded from "hard retrieval and reconciliation" to "trivial lookup": the score climbed while the agent sat still. That's the worst kind of eval rot, because it looks exactly like progress. The task your benchmark measures today is not the task it measured at design time, and no re-run of the agent will tell you.</p>
+
+<figure class="eb-drift">
+  <div class="eb-drift-lane">
+    <p class="eb-drift-label">your frozen eval — <em>never changes</em></p>
+    <div class="eb-drift-frozen">snapshot — January · question + answer + environment v1</div>
+  </div>
+  <div class="eb-drift-lane">
+    <p class="eb-drift-label">the live world — <em>months later →</em></p>
+    <div class="eb-drift-live">
+      <span class="eb-drift-v">v1<br><small>January</small></span>
+      <span class="eb-drift-arrow">→</span>
+      <span class="eb-drift-v">v2</span>
+      <span class="eb-drift-arrow">→</span>
+      <span class="eb-drift-v">v3</span>
+    </div>
+  </div>
+  <p class="eb-caption">the widening gap — is the agent failing, or did the world move? Re-audit the instrument, not just the agent.</p>
+</figure>
+
+<p>The countermeasures are unglamorous and they work. Version ground truth as <strong>(question, answer, environment-snapshot) triples</strong> — the snapshot is part of the truth, not an implementation detail. Keep a <strong>frozen lane</strong> (record-and-replay API responses, cached pages, pinned snapshots) for regression comparisons, and a <strong>live canary lane</strong> against the real environment; when the two lanes diverge, that divergence is your refresh signal. And measure your own eval's drift the way you'd measure anything else: freeze the agent, re-run the same set weeks apart against live sources, and put paired differences with CIs on the deltas — part 3's machinery, pointed at your own instrument. Re-audit on a schedule, not on suspicion.</p>
+
+<p>One last environment trap, because it corrupts the statistics of this post specifically: <strong>retry policies change k without telling you.</strong> A harness that silently retries timeouts is not measuring pass@1 — it's measuring pass@(1+retries) with a timeout-shaped censoring rule, and your carefully unbiased estimator is now unbiased for the wrong quantity. Retry semantics are part of the metric's definition. Pin them, and report them next to k.</p>
+
+<h2>Works in the demo, works every time</h2>
+
+<p>Reliability engineering has known the difference between "works on the bench" and "works every time" for a century — it's why MTBF exists and why nobody certifies an aircraft part with a highlight reel. Agent evals didn't discover the distinction; they compressed it into two exponents on the same probability, which is the kind of gift you should accept. If you take one habit from this post: never report a lone "pass rate" for an agent again. Say which statistic, at which k, from how many runs, with what error bar, against which environment snapshot. That sentence is longer than a number — and it's the shortest sentence that means anything.</p>
+
+<p>Next, the finale: taking every instrument this series has built — error bars, power, raters, judges, rankings, pass@k — and assembling them into one product eval, end to end.</p>
+
+<h2>What this means for your eval</h2>
+
+<ul class="eb-checklist">
+  <li>Report the <strong>pair</strong>: pass@k for capability, pass^k for reliability, at a declared k. The gap between them is a diagnostic, not an embarrassment — it picks your roadmap.</li>
+  <li>Estimate per task with the <strong>unbiased combinatorial estimator</strong> (n ≥ k runs): never plug <code>c/n</code> into <code>(1−p)^k</code> or <code>p^k</code> — Jensen makes the first pessimistic and the second optimistic.</li>
+  <li>Put an error bar on the aggregate by <strong>bootstrapping over tasks</strong>, not runs. Per-task estimates carry the within-task noise for you; tasks are the sampling unit.</li>
+  <li>Budget rule: <strong>n ≈ 2k–3k runs per task, everything else into more tasks.</strong> Past 3k, buy tasks, not reruns — between-task variance dominates at 20–50 tasks.</li>
+  <li>Version ground truth as <strong>(question, answer, environment-snapshot)</strong> triples; run a frozen regression lane beside a live canary lane, and treat lane divergence as the refresh signal.</li>
+  <li>Measure your <strong>own eval's drift</strong> on a schedule: agent frozen, same set re-run weeks apart, paired differences with CIs.</li>
+  <li>Declare the harness <strong>retry policy</strong> inside the metric definition. Silent retries change k; a changed k changes everything above.</li>
+</ul>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>Mark Chen et al., <a href="https://arxiv.org/abs/2107.03374">Evaluating Large Language Models Trained on Code</a> (2021) — pass@k and the unbiased estimator (appendix), born with Codex.</li>
+  <li>Han Lee, <a href="https://leehanchung.github.io/blogs/2025/09/08/pass-at-k/">pass@k as a U-statistic</a> (2025) — the clean derivation of why the combinatorial estimator is unbiased and the plug-in isn't.</li>
+  <li>Shunyu Yao et al., <a href="https://arxiv.org/abs/2406.12045">τ-bench</a> (2024) and <a href="https://arxiv.org/abs/2506.07982">τ²-bench</a> (2025) — the pass^k reliability framing for customer-facing agents.</li>
+  <li>Anthropic, <a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Demystifying Evals for AI Agents</a> (2026) — pass@k vs pass^k as standard reporting; the 20–50-task reality.</li>
+  <li>Evan Miller, <a href="https://arxiv.org/pdf/2411.00640">Adding Error Bars to Evals</a> (2024) — resampling within questions ("epochs") and the law of total variance behind the two-layer SE.</li>
+  <li><a href="/build/error-bars-applied">Part 3 of this series</a> — clustered standard errors and the block bootstrap; the horizontal version of this post's vertical clustering.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-meta">Beyond Error Bars · Part 8 of 9 · Previous: <a href="/build/rankings-under-uncertainty-what-arena-numbers-mean">Rankings Under Uncertainty</a> · Next: <a href="/build/building-a-product-eval-instrumented">Building a Product Eval, Instrumented</a></p>
+<p class="eb-footer-note">Views mine.</p>

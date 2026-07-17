@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getPost } from "@/lib/mdx";
 import { CATEGORIES, findEntry } from "../../categories";
 
 export function generateStaticParams() {
@@ -29,6 +30,7 @@ export default async function OutsidePost({
   const found = findEntry(category, slug);
   if (!found) notFound();
   const { entry, category: c } = found;
+  const doc = getPost(`outside/${c.slug}`, slug);
 
   return (
     <article className="max-w-2xl mx-auto px-6 py-16">
@@ -51,8 +53,12 @@ export default async function OutsidePost({
         {entry.description}
       </p>
 
-      <div className="font-serif text-[16px] leading-[1.75] font-light text-[var(--foreground)] opacity-80">
-        <p>Coming soon.</p>
+      <div className="prose-mono font-serif text-[15px] font-light text-[var(--foreground)] opacity-80">
+        {doc ? (
+          <div dangerouslySetInnerHTML={{ __html: doc.content }} />
+        ) : (
+          <p>Coming soon.</p>
+        )}
       </div>
 
       <footer className="mt-24 pt-8 border-t border-[var(--border)]/60">

@@ -21,11 +21,11 @@ const ROOT = path.join(process.cwd(), "content");
 export function getPosts(section: string): Post[] {
   const dir = path.join(ROOT, section);
   if (!fs.existsSync(dir)) return [];
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".mdx") || f.endsWith(".md"));
+  const files = fs.readdirSync(dir).filter((f) => /\.(mdx?|html)$/.test(f));
   const posts = files.map((file) => {
     const raw = fs.readFileSync(path.join(dir, file), "utf8");
     const { data, content } = matter(raw);
-    const slug = file.replace(/\.mdx?$/, "");
+    const slug = file.replace(/\.(mdx?|html)$/, "");
     const date = data.date instanceof Date
       ? data.date.toISOString().slice(0, 10)
       : String(data.date ?? "");

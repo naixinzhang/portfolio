@@ -9,8 +9,7 @@ export function Nav() {
         </Link>
         <div className="flex items-center gap-6 text-sm">
           <Link href="/" className="hover:opacity-70">About</Link>
-          <Link href="/build" className="hover:opacity-70">Build</Link>
-          <Link href="/outside" className="hover:opacity-70">Outside</Link>
+          <Link href="/blog" className="hover:opacity-70">Blog</Link>
         </div>
       </div>
     </nav>

@@ -1,0 +1,156 @@
+---
+title: "Rankings Under Uncertainty: What Arena Numbers Mean"
+description: "An arena leaderboard is a 1952 tournament model fitted to a stream of noisy pairwise votes. This post is about what that model assumes, how far a rank can move when nothing happened, and when to trust the number anyway."
+date: 2026-07-21
+draft: false
+---
+
+<!--
+  TRANSCRIBED FROM SCREENSHOTS (Documents/blog/post7) — 2026-07-16.
+  Original: Documents/eval study/html/post-07.html on the other laptop.
+
+  KNOWN GAPS:
+  1. THE BRADLEY–TERRY SANDBOX is a live JS demo (Add 10/100 votes, Reset,
+     true-BT/nontransitive toggle, β strength plot with bootstrap CIs, observed
+     win-rate matrix, flip counter). CANNOT be static HTML. Marked
+     .eb-sim-placeholder with captured state + fit details.
+-->
+
+<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> Arena rankings are statistical estimates from pairwise votes — rank is the most volatile number on the page, and a one-dimensional rating can't even represent some real preference structures.</p>
+  <p><strong>You should care if:</strong> model choices at your company cite public leaderboard positions.</p>
+  <p><strong>Do this today:</strong> before reacting to a rank change, check the rating gap and its interval — "possibly nothing happened" is the most common true answer.</p>
+</aside>
+
+<h2>From #4 to #7 without shipping anything</h2>
+
+<p>A model I help evaluate spent a comfortable month at #4 on a public arena. Then, over about ten days, it slid to #7. Nothing had shipped — same weights, same endpoint, same system prompt; the release calendar was empty and the on-call channel was quiet. Leadership asked what happened, in the way leadership asks when a number with your name on it moves in public. The expected deliverable was a root cause. The honest answer — which I recommend delivering with more confidence than it seems to deserve — was: <strong>possibly nothing.</strong></p>
+
+<p>That answer sounds evasive, but it's a precise statistical claim. A rank is not a measurement of your model. It is a <strong>nonlinear function of every model's noisy strength estimate at once:</strong> "we fell three places" is an event involving at least four estimates, three of which belong to other people. Your strength estimate can sit perfectly still while three neighbors' estimates wobble upward past it. And where strength estimates drift smoothly as votes accumulate, ranks are integers — they can only jump. Rank is arguably the most volatile statistic the field publishes, and it is also the one that goes in the headline. To defend "possibly nothing" in a meeting, though, you need to know what an arena number actually estimates. That's this post.</p>
+
+<h2>From scores to preferences</h2>
+
+<p>Everything earlier in this series had a score per item: the model passed the task or it didn't, and the benchmark number was a mean with an error bar (<a href="/build/error-bars-applied">part 3</a>). Arena data is a different animal. A person types a prompt, two anonymous models answer, and the person clicks the better one. There is no ground truth per item and <strong>no absolute scale</strong> — nobody ever decides whether an answer was <em>good</em>, only which of two was preferred, once. The dataset is a tournament, not a gradebook, and every datapoint is purely relative evidence. This design is not a defect; it's the point. Fresh prompts from real users are hard to contaminate, and "which would you rather receive?" is often closer to the product question than any static benchmark. But it changes the statistics from the ground up.</p>
+
+<figure class="eb-absrel">
+  <div class="eb-absrel-col">
+    <p class="eb-absrel-h">Benchmark scores: absolute</p>
+    <p class="eb-absrel-sub">a score means something on its own</p>
+    <ul class="eb-absrel-scale">
+      <li><span class="eb-absrel-dot"></span> Model A · 78</li>
+      <li><span class="eb-absrel-dot"></span> Model B · 71</li>
+      <li><span class="eb-absrel-dot"></span> Model C · 64</li>
+    </ul>
+    <p class="eb-absrel-axis">0 —— 25 —— 50 —— 75 —— 100 &nbsp;·&nbsp; <em>a real zero</em></p>
+  </div>
+  <div class="eb-absrel-col">
+    <p class="eb-absrel-h">Arena votes: relative</p>
+    <p class="eb-absrel-sub">only pairwise preferences</p>
+    <div class="eb-absrel-graph">
+      <span class="eb-absrel-node">A</span>
+      <span class="eb-absrel-edge">A wins 65% → B</span>
+      <span class="eb-absrel-edge">A wins 68% → C</span>
+      <span class="eb-absrel-edge">B wins 55% → C</span>
+    </div>
+    <p class="eb-absrel-axis"><em>no ruler, no zero — only gaps</em></p>
+  </div>
+  <p class="eb-caption">Pairwise data has no zero — only distances between players. A benchmark score means something on its own; an arena rating only means something relative to the other ratings on the board.</p>
+</figure>
+
+<h2>The Bradley–Terry model, and why "Elo" is a nickname</h2>
+
+<p>The standard machine for turning tournaments into rankings is the <strong>Bradley–Terry model</strong> — 1952, invented for actual tournaments. Every model <em>i</em> gets a positive latent strength π_i, and</p>
+
+<pre><code>P(A beats B) = π_A / (π_A + π_B)</code></pre>
+
+<p>Take logs — β = ln π — and the same model becomes</p>
+
+<pre><code>P = 1 / (1 + exp(−(β_A − β_B)))</code></pre>
+
+<p>a logistic regression in strength <em>differences</em>, where the only features are model identities. Two consequences fall straight out. First, <strong>only differences are identified:</strong> add a constant to every β and no prediction changes, so the fit pins the mean (or a reference model) at zero — a rating means nothing alone; only gaps do. Second, gaps convert to win probabilities: a β-gap of 0.62 is a 65–35 matchup, and on the Elo-style display scaling arenas use, about 100 points is roughly a 64% win rate. That's the exchange rate between leaderboard points and reality, and it's worth doing in your head before reacting to any gap.</p>
+
+<p>Where does Elo fit in? <em>Elo is Bradley–Terry fitted incrementally:</em> after each game, nudge both ratings by a learning rate times the surprise (observed result minus predicted win probability). That is exactly the right tool for chess, where players genuinely improve and decay and the rating must track a moving target. It is a suboptimal tool for model snapshots, which are static: the learning rate never fully averages out, and the estimate depends on the order the votes arrived. Chatbot Arena worked through this in public and switched, in December 2023, from online Elo updates to fitting Bradley–Terry by <strong>batch maximum likelihood</strong> over the whole vote log (<a href="https://www.lmsys.org/blog/2023-12-07-leaderboard/">LMSYS blog</a>; the methodology paper is <a href="https://arxiv.org/abs/2403.04132">Chiang et al., 2403.04132</a>). The numbers are still called "Elo scores" everywhere. They are batch BT estimates wearing Elo's scaling.</p>
+
+<h2>The error bar on a rank</h2>
+
+<p>Fitting gives you a β per model, and β deserves the part-3 treatment: a confidence interval. You can get one analytically — invert the Fisher information at the maximum, or use a sandwich estimator if you distrust the model (you should; see the next section) — or, simplest to get right, <strong>bootstrap over votes:</strong> resample the vote log with replacement, refit, repeat a few hundred times, take percentiles. Strength CIs behave like every CI in this series: they shrink like one over the square root of the number of votes, matchup by matchup.</p>
+
+<p>But nobody publishes strengths. They publish ranks, and <strong>ranks inherit more uncertainty than strengths.</strong> Rank is a step function of <em>all</em> the estimates simultaneously — <code>rank_i = 1 + #{j : β_j &gt; β_i}</code> — so it inherits noise from every model, not just yours. In a tight pack — and the top of every arena is a tight pack, because frontier models cluster — a model can have a perfectly respectable strength CI and a plausible-rank range of #2–#8, because five neighbors sit within one wobble of each other. The more models crowd the board, the worse this gets: every new entrant near your strength adds another coin flip to your rank. This is part 3's error-bar problem, one level up — ranks inherit more uncertainty than strengths — and the honest reporting conventions are the same ones: <strong>rank ranges</strong> (LMArena's convention) or <strong>rank-by-upper-bound</strong> — the convention on Scale's public <a href="https://scale.com/blog/leaderboard">SEAL leaderboards</a>, where your rank is the best position you cannot be statistically distinguished from.</p>
+
+<p>Which was, in the end, the answer that went upstairs: our model's rank range had been #3–#8 all quarter. #4 and #7 were both inside it the whole time. The arena had never measured us to single-rank resolution — the leaderboard just displayed it that way.</p>
+
+<div data-sim="bradley-terry-sandbox"></div>
+<h2>What the model assumes — and how arenas break it</h2>
+
+<p>Bradley–Terry is a model, and its error bars are only as honest as its assumptions. Four of them fail on real arenas, each in its own way.</p>
+
+<p><strong>One dimension — hence transitivity.</strong> BT places every model on a single strength line, which implies stochastic transitivity: if A usually beats B and B usually beats C, then A must usually beat C. Real preferences don't owe us that. Models have skill <em>profiles</em> — one is the best coder, another the best writer, a third the fastest and tersest — and an arena's prompt stream mixes domains, so aggregate preferences can cycle: A over B over C over A. BT cannot represent a cycle. It does not crash or warn; it converges cheerfully to middling strengths that misdescribe every single matchup, and the fit diagnostics look normal. That's the sandbox's second world: the bars settle, the CIs tighten, and only the win-rate matrix shows what the ranking is hiding. <em>Practitioner translation: when models specialize differently, their BT gap is mostly a fact about the prompt mix, not the models — read category leaderboards and pairwise matrices before believing a scalar order.</em></p>
+
+<figure class="eb-cycle">
+  <div class="eb-cycle-row">
+    <div class="eb-cycle-side">
+      <p class="eb-cycle-h">What the votes say</p>
+      <p class="eb-cycle-sub">preferences can cycle</p>
+      <svg viewBox="0 0 340 250" class="eb-cyc-svg" role="img" aria-label="preference cycle A beats B beats C beats A"><circle cx="170" cy="58" r="26" fill="var(--background)" stroke="#3b5b9a" stroke-width="1.6"/><text x="170" y="64" font-size="18" font-weight="700" text-anchor="middle" fill="var(--foreground)">A</text><circle cx="68" cy="205" r="26" fill="var(--background)" stroke="#3b5b9a" stroke-width="1.6"/><text x="68" y="211" font-size="18" font-weight="700" text-anchor="middle" fill="var(--foreground)">B</text><circle cx="272" cy="205" r="26" fill="var(--background)" stroke="#3b5b9a" stroke-width="1.6"/><text x="272" y="211" font-size="18" font-weight="700" text-anchor="middle" fill="var(--foreground)">C</text><line x1="155.0" y1="79.0" x2="83.0" y2="184.0" stroke="#3b5b9a" stroke-width="1.6"/><path d="M83.0 184.0 L84.0 172.8 L93.1 179.0 z" fill="#3b5b9a"/><line x1="94.0" y1="205.0" x2="246.0" y2="205.0" stroke="#3b5b9a" stroke-width="1.6"/><path d="M246.0 205.0 L236.2 210.5 L236.2 199.5 z" fill="#3b5b9a"/><line x1="257.0" y1="184.0" x2="185.0" y2="79.0" stroke="#3b5b9a" stroke-width="1.6"/><path d="M185.0 79.0 L195.1 84.0 L186.0 90.2 z" fill="#3b5b9a"/><text x="103" y="135" font-size="13" fill="var(--muted)" text-anchor="middle">wins 65%</text><text x="170" y="235" font-size="13" fill="var(--muted)" text-anchor="middle">wins 65%</text><text x="237" y="135" font-size="13" fill="var(--muted)" text-anchor="middle">wins 65%</text></svg>
+    </div>
+    <div class="eb-cycle-side">
+      <p class="eb-cycle-h">What Bradley&ndash;Terry reports</p>
+      <p class="eb-cycle-sub">forced onto one line, the cycle cancels</p>
+      <div class="eb-cyc-bars"><div class="eb-cyc-barrow"><span class="eb-cyc-lbl">A</span><span class="eb-cyc-bar"></span><span class="eb-cyc-beta">&beta; 0.00</span></div><div class="eb-cyc-barrow"><span class="eb-cyc-lbl">B</span><span class="eb-cyc-bar"></span><span class="eb-cyc-beta">&beta; 0.00</span></div><div class="eb-cyc-barrow"><span class="eb-cyc-lbl">C</span><span class="eb-cyc-bar"></span><span class="eb-cyc-beta">&beta; 0.00</span></div></div>
+      <p class="eb-cyc-verdict">BT says: all equal</p>
+    </div>
+  </div>
+  <p class="eb-caption">A one-dimensional scale cannot represent a cycle &mdash; it averages it away. The fit converges, the CIs tighten, and every single matchup is misdescribed.</p>
+</figure>
+
+<p><strong>Stationarity.</strong> The fit assumes each β is constant across the vote window. But vendors update models behind stable names: silent snapshot swaps, serving and quantization changes, deprecations. A name on an arena is a pointer, and votes from March pool with votes from June into the rating of a blend that may never have existed at any single moment. <em>Practitioner translation: before reacting to a rating, check that it's stable across time slices — a rating attached to a name is an average over everything that name has pointed to.</em></p>
+
+<p><strong>The vote-generating population.</strong> The estimand is "the preferences of people who visit this arena, on prompts they choose to type, judged by whatever criteria they feel like using." That last clause bites hardest: votes reward style as well as substance. Longer, better-formatted, more confidently phrased answers collect extra wins independent of correctness — and when LMArena added <a href="https://www.lmsys.org/blog/2024-08-28-style-control/">style controls</a>, regressing length and markdown effects out of the BT fit, rankings moved, in some cases substantially. <em>Practitioner translation: an arena rank measures a population you don't serve, on a task mix you didn't choose, with tastes you may not share; if your users or your rubric differ, expect your ranking to differ too.</em></p>
+
+<p><strong>Selection effects.</strong> <a href="https://arxiv.org/abs/2504.20879">"The Leaderboard Illusion"</a> documented the strategic layer above the statistics: private variant testing (submit several variants anonymously, publish only the winner — the maximum of k noisy draws is biased upward, plain order statistics), selective score disclosure, and unequal sampling and deprecation across providers. Note carefully what this is <em>not</em>: it is not sampling error. Every confidence interval on the board can be computed flawlessly and the ranking still be distorted, because the bias entered through <em>which data was allowed to exist.</em> <em>Practitioner translation: statistical rigor in the fit says nothing about the strategy above it — before trusting a leaderboard, ask what the entrants got to choose.</em></p>
+
+<h2>When to trust an arena number</h2>
+
+<p>Trust it when the evidence is strong in exactly the ways this post makes checkable: rank ranges that don't overlap (a gap, not a photo finish); ratings stable across time slices; a prompt distribution that resembles your task, or a category leaderboard that does. Arenas are genuinely good at the shortlist question — <em>which five models are worth evaluating at all</em> — and at detecting large capability gaps, which no amount of styling or selection fully manufactures. Distrust it for adjacent-rank distinctions, narrow domains, and style-sensitive tasks — which is to say, for most decisions people actually bring to a leaderboard. For those, the answer is <a href="/build/error-bars-applied">parts 3</a> and <a href="/build/how-many-examples-and-when-can-you-stop">4</a>: your prompts, your rubric, a paired design, and a sample size you chose on purpose.</p>
+
+<figure class="eb-tree">
+  <svg viewBox="0 0 920 430" class="eb-tree-svg" role="img" aria-label="decision tree: trust the arena rank?"><rect x="330" y="22" width="260" height="52" rx="10" fill="var(--eb-tint)" stroke="#3b5b9a" stroke-width="1.6"/><text x="460" y="54" font-size="17" font-weight="700" text-anchor="middle" fill="var(--foreground)">Trust the arena rank?</text><path d="M460 74 L460 100 M155 100 L765 100" stroke="var(--border)" stroke-width="1.2" fill="none"/><line x1="155" y1="100" x2="155" y2="132" stroke="var(--border)" stroke-width="1.2"/><line x1="460" y1="100" x2="460" y2="132" stroke="var(--border)" stroke-width="1.2"/><line x1="765" y1="100" x2="765" y2="132" stroke="var(--border)" stroke-width="1.2"/><text x="155" y="150" font-size="14" text-anchor="middle" fill="var(--muted)">gap large & stable,</text><text x="155" y="169" font-size="14" text-anchor="middle" fill="var(--muted)">and it's your domain</text><line x1="155.0" y1="182.0" x2="155.0" y2="222.0" stroke="var(--muted)" stroke-width="1.2"/><path d="M155.0 222.0 L149.5 212.2 L160.5 212.2 z" fill="var(--muted)"/><text x="460" y="150" font-size="14" text-anchor="middle" fill="var(--muted)">gap small</text><text x="460" y="169" font-size="14" text-anchor="middle" fill="var(--muted)">or volatile</text><line x1="460.0" y1="182.0" x2="460.0" y2="222.0" stroke="var(--muted)" stroke-width="1.2"/><path d="M460.0 222.0 L454.5 212.2 L465.5 212.2 z" fill="var(--muted)"/><text x="765" y="150" font-size="14" text-anchor="middle" fill="var(--muted)">your task ≠</text><text x="765" y="169" font-size="14" text-anchor="middle" fill="var(--muted)">arena traffic</text><line x1="765.0" y1="182.0" x2="765.0" y2="222.0" stroke="var(--muted)" stroke-width="1.2"/><path d="M765.0 222.0 L759.5 212.2 L770.5 212.2 z" fill="var(--muted)"/><rect x="27" y="228" width="256" height="120" rx="12" fill="var(--background)" stroke="var(--border)" stroke-width="1.2"/><text x="155" y="278" font-size="16" font-weight="700" text-anchor="middle" fill="var(--foreground)">Yes — roughly.</text><text x="155" y="306" font-size="13" text-anchor="middle" fill="var(--muted)">big gaps survive the noise</text><rect x="332" y="228" width="256" height="120" rx="12" fill="var(--background)" stroke="var(--border)" stroke-width="1.2"/><text x="460" y="278" font-size="16" font-weight="700" text-anchor="middle" fill="var(--foreground)">Call it a tie.</text><text x="460" y="306" font-size="13" text-anchor="middle" fill="var(--muted)">decide on fit and price</text><rect x="637" y="228" width="256" height="120" rx="12" fill="var(--background)" stroke="var(--border)" stroke-width="1.2"/><text x="765" y="278" font-size="16" font-weight="700" text-anchor="middle" fill="var(--foreground)">Run your own paired eval</text><text x="765" y="306" font-size="13" text-anchor="middle" fill="var(--muted)">your prompts, your rubric (parts 3–4)</text></svg>
+  <p class="eb-caption">When to believe a leaderboard, in one tree. Arenas are good at the shortlist and at large gaps; adjacent ranks and narrow domains are yours to measure.</p>
+</figure>
+
+<p>One endorsement to balance the skepticism. For <strong>internal model comparisons</strong> — a prompt bake-off, a fine-tune against its base — pairwise preference plus Bradley–Terry is often <em>better</em> instrumentation than absolute scoring. Raters are far more reliable at "which of these is better?" than at holding a 1–7 rubric anchored across weeks (part 5's drift problem), and BT turns those comparisons into strengths with real CIs. Two design rules make it work. First, keep the comparison graph <strong>connected:</strong> BT only identifies differences along paths of comparisons, so if your models split into two pods that never face each other, cross-pod gaps aren't just noisy — they are undefined; the likelihood has no unique maximum. Random pairing keeps you connected; so does a common baseline every candidate fights. Second, decide what ties mean: real votes include "both fine" and "both bad," and tie-aware extensions (Rao–Kupper, Davidson, and the systematic treatment in <a href="https://arxiv.org/abs/2412.18407">Ameli et al.'s leaderbot</a>) use that information instead of discarding it.</p>
+
+<h2>The unit changes next</h2>
+
+<p>Every post so far, this one included, has assumed the atom of evidence is a single attempt: one item, one vote, one pass/fail. Agents break the atom. When a model gets k tries at a task, when the sandbox itself is flaky, when "can it ever do this?" and "can it do this every time?" have different answers — a single attempt isn't even the right unit of analysis. Capability and reliability come apart, and pass@k and pass^k need their own error bars. That's part 8.</p>
+
+<h2>What this means for your eval</h2>
+
+<ul class="eb-checklist">
+  <li>Never quote an arena rank without its <strong>rank range</strong>. A rank move inside overlapping ranges is noise until proven otherwise — "possibly nothing" is a complete answer.</li>
+  <li>Treat "Elo" numbers as Bradley–Terry log-strengths: only <strong>gaps</strong> mean anything, and convert gaps to win probabilities (≈100 points → 64%) before reacting to one.</li>
+  <li>Before citing a leaderboard, run the three checks: stable across <strong>time slices</strong>? prompt mix matches <strong>your domain</strong>? does the ranking survive <strong>style control</strong>?</li>
+  <li>Look at the <strong>pairwise win matrix</strong> before believing the scalar order — if preferences cycle, the prompt mix, not the models, is choosing the ranking.</li>
+  <li>Remember the CIs can all be right while the ranking is gamed: <strong>selection effects</strong> (private variants, selective disclosure) live above the statistics.</li>
+  <li>For internal comparisons, prefer pairwise votes + BT over absolute rubric scores — and keep the comparison graph <strong>connected</strong> by design, with a policy for ties.</li>
+</ul>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>LMSYS Org, <a href="https://www.lmsys.org/blog/2023-12-07-leaderboard/">Chatbot Arena leaderboard update</a> (Dec 2023) — the switch from online Elo updates to batch maximum-likelihood Bradley–Terry.</li>
+  <li>Chiang et al., <a href="https://arxiv.org/abs/2403.04132">Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference</a> (2024) — the arena methodology paper: BT fit, sampling, intervals.</li>
+  <li>David R. Hunter, <a href="https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full">MM Algorithms for Generalized Bradley–Terry Models</a>, Annals of Statistics 32(1) (2004) — the fitting algorithm the sandbox implements.</li>
+  <li>LMSYS Org, <a href="https://www.lmsys.org/blog/2024-08-28-style-control/">Does Style Matter?</a> (2024) — style control: separating substance from length and markdown in arena votes.</li>
+  <li>Singh et al., <a href="https://arxiv.org/abs/2504.20879">The Leaderboard Illusion</a> (2025) — private variant testing, selective disclosure, unequal sampling; see also <a href="https://simonwillison.net/2025/Apr/30/criticism-of-the-chatbot-arena/">Simon Willison's digest</a>.</li>
+  <li>Ameli et al., <a href="https://arxiv.org/abs/2412.18407">A Statistical Framework for Ranking LLM-Based Chatbots</a> (leaderbot, 2024) — tie-aware Bradley–Terry extensions with covariance modeling.</li>
+  <li>Scale AI, <a href="https://scale.com/blog/leaderboard">SEAL leaderboard methodology</a> — rank-by-upper-bound reporting; <a href="https://lmarena.ai">LMArena</a> — rank ranges in the wild.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-meta">Beyond Error Bars · Part 7 of 9 · Previous: <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">Your LLM Judge Is a Biased, Noisy Instrument. Debias It.</a> · Next: <a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">Agent Evals: the Statistics of pass@k and pass^k</a></p>
+<p class="eb-footer-note">Views mine.</p>

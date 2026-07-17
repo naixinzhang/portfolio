@@ -1,0 +1,184 @@
+---
+title: "Every Eval Era Created the Next Measurement Problem"
+description: "A short history of LLM evaluation, told as a chain of patches — and an argument that the next patch isn't a new benchmark. It's statistics."
+date: 2026-07-15
+draft: false
+---
+
+<!--
+  TRANSCRIBED FROM SCREENSHOTS (Documents/blog/post1) — 2026-07-15.
+  Era explorer: all six panels filled from follow-up captures (2026-07-16).
+  All reference and inline links resolved.
+-->
+
+<p class="eb-byline">Naixin Zhang · 2026 · Views mine</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> Every era of LLM evaluation fixed the last era's blind spot and created a new measurement problem — and the fix the field needs now isn't a new benchmark, it's statistics.</p>
+  <p><strong>You should care if:</strong> you read leaderboards, run benchmarks, or wonder why eval methods keep churning.</p>
+  <p><strong>Do this today:</strong> name which era your team's headline metric comes from — its known crack is your standing risk.</p>
+</aside>
+
+<p>Every few years, the field quietly decides that its way of measuring language models is broken, invents a new one, and moves on. It's usually right both times — the old way <em>was</em> broken, and the new way <em>is</em> better. What rarely gets said out loud is that each new way was built to fix the specific fracture in the last one, and each brought a fresh measurement problem of its own. If you line the eras up, LLM evaluation stops looking like a pile of benchmarks and starts looking like one long engineering project: patch, crack, patch.</p>
+
+<p>I find this the most useful way to orient anyone entering the field, and I owe the framing's cleanest statement to Percy Liang's Stanford <a href="https://cs336.stanford.edu/lectures/?trace=lecture_12">evaluation lecture</a>: the core challenge of evaluation is turning an <strong>abstract construct</strong> ("is this model good?") into a <strong>concrete metric</strong>. Every era below is one attempt at that translation. Every crack is a place where the metric and the construct came apart.</p>
+
+<p>This post is the story. The rest of the series — nine parts, all linked at the bottom — is the toolbox the story ends by demanding. I work as a data scientist at an eval vendor, which means I've spent the last couple of years watching these cracks up close, on leaderboards and inside enterprise eval programs; that vantage point shapes everything here.</p>
+
+<h2>Six eras, one pattern</h2>
+
+<figure class="eb-eras">
+  <figcaption class="eb-eras-title">The eras — click one: what it measured, why it won, how it cracked</figcaption>
+
+  <div class="eb-eras-tabs">
+    <input type="radio" name="eb-era" id="eb-era-perplexity" checked>
+    <input type="radio" name="eb-era" id="eb-era-exams">
+    <input type="radio" name="eb-era" id="eb-era-preferences">
+    <input type="radio" name="eb-era" id="eb-era-judges">
+    <input type="radio" name="eb-era" id="eb-era-agents">
+    <input type="radio" name="eb-era" id="eb-era-environments">
+
+    <div class="eb-eras-rail">
+      <label for="eb-era-perplexity"><span class="eb-era-name">Perplexity</span><span class="eb-era-years">–2020</span></label>
+      <label for="eb-era-exams"><span class="eb-era-name">Exams</span><span class="eb-era-years">2020–23</span></label>
+      <label for="eb-era-preferences"><span class="eb-era-name">Preferences</span><span class="eb-era-years">2023–</span></label>
+      <label for="eb-era-judges"><span class="eb-era-name">LLM judges</span><span class="eb-era-years">2023–</span></label>
+      <label for="eb-era-agents"><span class="eb-era-name">Agents</span><span class="eb-era-years">2024–</span></label>
+      <label for="eb-era-environments"><span class="eb-era-name">Environments</span><span class="eb-era-years">2025–</span></label>
+    </div>
+
+    <div class="eb-eras-panels">
+      <div class="eb-era-panel" id="eb-panel-perplexity">
+        <p><span class="eb-k">Measured:</span> Perplexity — the exponentiated average surprise on held-out text: (1/P(D))^(1/|D|). One number, smooth, differentiable.</p>
+        <p><span class="eb-k">Why it won:</span> Cheap, universal, and theoretically seductive: perfect perplexity = the true distribution = every task solvable. Scaling laws are drawn in this currency.</p>
+        <p><span class="eb-k">How it cracked:</span> It spends attention indiscriminately — every token penalized equally, relevant or not — and models with similar perplexity behave differently on tasks people care about. The construct drifted away from the metric.</p>
+      </div>
+
+      <div class="eb-era-panel" id="eb-panel-exams">
+        <p><span class="eb-k">Measured:</span> Accuracy on curated question sets with unambiguous answers — MMLU's 57 subjects, then harder: MMLU-Pro, GPQA, HLE.</p>
+        <p><span class="eb-k">Why it won:</span> Control over topic and difficulty, trivial grading, cross-model comparability. The lingua franca of model releases for three years.</p>
+        <p><span class="eb-k">How it cracked:</span> Saturation forced a difficulty arms race; internet-scale training made contamination the default assumption; and nobody asks their assistant multiple-choice questions — realism was never in the design.</p>
+      </div>
+
+      <div class="eb-era-panel" id="eb-panel-preferences">
+        <p><span class="eb-k">Measured:</span> Human pairwise preferences on real prompts, aggregated into rankings (Elo, then Bradley–Terry) — Chatbot Arena.</p>
+        <p><span class="eb-k">Why it won:</span> Real users, real prompts, and a construct (what people prefer) that exam scores never touched. Free data at scale.</p>
+        <p><span class="eb-k">How it cracked:</span> Style beats substance distressingly often; the voter population is uncontrolled; it's too slow for a weekly dev loop — and rank is the most volatile statistic on the page (<a href="/build/rankings-under-uncertainty-what-arena-numbers-mean">part 7</a>).</p>
+      </div>
+
+      <div class="eb-era-panel" id="eb-panel-judges">
+        <p><span class="eb-k">Measured:</span> Model outputs graded by another model against a rubric or reference — pass rates, scores out of ten, win rates.</p>
+        <p><span class="eb-k">Why it won:</span> Evaluation at 1% of the cost and 100× the speed. Every team could suddenly afford to measure everything.</p>
+        <p><span class="eb-k">How it cracked:</span> The grader is an unvalidated instrument: position bias, verbosity bias, self-preference — and length-hacked leaderboards forced the question &lsquo;how do we evaluate the metric?&rsquo; The answer is <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">part 6</a>.</p>
+      </div>
+
+      <div class="eb-era-panel" id="eb-panel-agents">
+        <p><span class="eb-k">Measured:</span> Task outcomes in tool-using, multi-step settings — repos patched (SWE-bench), terminals driven, tickets closed.</p>
+        <p><span class="eb-k">Why it won:</span> Closest yet to economic value: measuring what models do, not what they say.</p>
+        <p><span class="eb-k">How it cracked:</span> You're grading model + scaffold as one unit; environments flake in ways that impersonate model failure; and one attempt is the wrong unit — pass@k vs pass^k (<a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">part 8</a>) is the demo/product gap.</p>
+      </div>
+
+      <div class="eb-era-panel" id="eb-panel-environments">
+        <p><span class="eb-k">Measured:</span> Performance inside living worlds: interactive environments, live websites, occupation-realistic tasks graded by professionals (GDPval, ARC-AGI-3).</p>
+        <p><span class="eb-k">Why it won:</span> The realism endgame — tasks with the texture, ambiguity, and stakes of actual work.</p>
+        <p><span class="eb-k">How it cracked:</span> The world won't hold still: sites redesign, APIs version, data rots. The instrument decays in your hands — eval maintenance becomes part of the eval (parts <a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">8</a>–<a href="/build/building-a-product-eval-instrumented">9</a>).</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="eb-caption">Eras overlap and none ever fully dies — perplexity still steers pretraining, exams still gate releases. What changes is which instrument the field trusts for its headline claims.</p>
+</figure>
+
+<p><strong>Perplexity</strong> was evaluation's classical period: a language model is a probability distribution, so score it by the probability it assigns to held-out text. It was clean, cheap, differentiable, and it produced the smooth curves that scaling laws are made of — it still does. The theory was even seductive: perfect perplexity means you've matched the true distribution, which means you can solve any task expressible as text. But perplexity spends its attention indiscriminately — it penalizes surprise on every token, whether or not the token matters — and two models with similar perplexity can behave very differently on the tasks people care about. The construct ("useful model") and the metric ("average surprise") drifted apart, and GPT-era models made the drift undeniable.</p>
+
+<p><strong>Exams</strong> patched that: test the model like a student. MMLU's 57 subjects, unambiguous answers, easy grading — control over difficulty and topic that perplexity never offered. The crack came from two directions at once. First, <strong>saturation</strong>: models caught up, so the field escalated — MMLU-Pro pruned the noise and scores dropped by double digits; GPQA hired PhDs to write questions Google can't answer; Humanity's Last Exam paid a prize pool for questions at the frontier of human knowledge. An arms race of difficulty is not a sign of healthy measurement; it's a sign the instrument keeps getting outgrown. Second, <strong>contamination</strong>: when your training set is the internet, the test set is probably in it. And beneath both cracks sat a validity problem no difficulty could fix: nobody asks their assistant multiple-choice questions. The construct had moved on.</p>
+
+<p><strong>Human preferences</strong> patched the realism gap: put two anonymous models in front of real users with real prompts and ask which answer they prefer. Chatbot Arena turned pairwise votes into rankings, and preference data became the currency of the RLHF era. The cracks: preference conflates style with correctness (a confident wrong answer beats a hedged right one distressingly often), the voting population is whoever shows up, and the whole apparatus is slow and expensive relative to a development loop that ships weekly. Preference is a real construct — it's just not the only one, and it's gameable by charm.</p>
+
+<p><strong>LLM judges</strong> patched the cost problem: if humans are slow and expensive, let a model grade the outputs. Suddenly every team could afford evaluation at scale. The crack is the one this series spends an entire flagship post on: <strong>the judge is itself an unvalidated instrument</strong> — position-biased, verbosity-biased, partial to its own family's outputs — and the first leaderboard gaming scandals (length-hacking AlpacaEval) forced the question that measurement science starts with: <em>how do you evaluate the metric?</em> The judge era smuggled a second model's error into every number, and most teams still report those numbers as if the judge were ground truth.</p>
+
+<p><strong>Agents</strong> patched the "models talk but don't do" gap: give the model tools and a goal — patch this repo, complete this ticket, run this terminal — and score outcomes. SWE-bench and its cousins moved evaluation dramatically closer to economic reality. The cracks multiplied accordingly: you're now measuring a model <em>plus a scaffold</em> and the scaffold matters as much as the model; environments are flaky in ways that masquerade as model failure; and a single attempt stopped being the right unit of measurement — the gap between "can do it ever" and "does it every time" (<a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">pass@k versus pass^k</a>) became the difference between a demo and a product.</p>
+
+<p><strong>Environments</strong> — where we are now — patch the last stretch of realism: interactive worlds, live websites, multi-step professional tasks judged by working professionals, benchmarks like GDPval built from actual occupations. The crack is already visible, and it's the strangest one yet: <strong>the world refuses to hold still</strong>. Websites redesign, APIs version, data rots — the instrument decays while you're using it, and an eval you don't re-audit is quietly measuring the drift of the world rather than the ability of the model.</p>
+
+<h2>The pattern, stated plainly</h2>
+
+<p>Read the chain again and a pattern falls out: <strong>each era solved the previous era's construct problem and introduced a new measurement problem.</strong> Exams fixed perplexity's relevance gap and created contamination and saturation. Preferences fixed the realism gap and created rater-population and style-confound problems. Judges fixed the cost problem and created the unvalidated-instrument problem. Agents fixed the "doing" gap and created scaffold conflation and run-to-run stochasticity. Environments fixed the last of the realism gap and created instrument decay.</p>
+
+<figure class="eb-chain">
+  <ol class="eb-chain-row">
+    <li><span class="eb-chain-era">Perplexity</span><span class="eb-chain-crack">relevance gap</span><span class="eb-badge">P2</span></li>
+    <li><span class="eb-chain-era">Exams</span><span class="eb-chain-crack">contamination + saturation</span><span class="eb-badge">P3</span></li>
+    <li><span class="eb-chain-era">Preferences</span><span class="eb-chain-crack">style confound, who votes?</span><span class="eb-badge">P7</span></li>
+    <li><span class="eb-chain-era">Judges</span><span class="eb-chain-crack">unvalidated grader</span><span class="eb-badge">P6</span></li>
+    <li><span class="eb-chain-era">Agents</span><span class="eb-chain-crack">scaffold + flakiness</span><span class="eb-badge">P8</span></li>
+    <li><span class="eb-chain-era">Environments</span><span class="eb-chain-crack">instrument decay</span><span class="eb-badge">P9</span></li>
+  </ol>
+  <p class="eb-caption">The cracks don't close when the field moves on — they accumulate. The badge under each crack names the series part that treats it: this series is the repair manual.</p>
+</figure>
+
+<blockquote class="eb-pullquote">The benchmarks keep changing. The measurement problems just accumulate — every era's crack is still open, still waiting for statistical treatment.</blockquote>
+
+<p>One thread runs through all six eras and deserves its own sentence: <strong>validity</strong>. Contamination is not one problem but a spectrum of severities — benign overlap of task <em>universes</em> at one end; exact prompt-and-solution leakage in the middle; and, at the nasty end, ground-truth answers leaking into training signals, where a model never sees the test but learns to game its distribution anyway. The field's defenses (private holdout splits, fresh-item pipelines, reporting norms, contamination inference) are all instrument-maintenance practices — and the fact that we now need severity taxonomies for test leakage tells you evaluation has become adversarial infrastructure, not a courtesy report.</p>
+
+<figure class="eb-severity">
+  <div class="eb-severity-scale"><span>benign</span><span class="eb-severity-arrow"></span><span>nasty</span></div>
+  <ol class="eb-severity-bands">
+    <li class="eb-sev-1"><span class="eb-sev-swatch"></span><span class="eb-sev-name">shared task universe</span><span class="eb-sev-note">same domain, no overlap</span></li>
+    <li class="eb-sev-2"><span class="eb-sev-swatch"></span><span class="eb-sev-name">similar tasks</span><span class="eb-sev-note">paraphrases &amp; near-twins</span></li>
+    <li class="eb-sev-3"><span class="eb-sev-swatch"></span><span class="eb-sev-name">exact prompts leaked</span><span class="eb-sev-note">test items in pretraining</span></li>
+    <li class="eb-sev-4"><span class="eb-sev-swatch"></span><span class="eb-sev-name">answers leaked into training signal</span><span class="eb-sev-note">gamed without being seen</span></li>
+  </ol>
+  <p class="eb-caption">Not all contamination is equal — locate yours on the severity spectrum before panicking (or relaxing).</p>
+</figure>
+
+<h2>The wave that stopped at the shore</h2>
+
+<p>Something encouraging happened in late 2024: the field noticed the missing error bars. Evan Miller's <a href="https://arxiv.org/pdf/2411.00640">Adding Error Bars to Evals</a> said the quiet part with formulas: an eval score is a sample statistic, and reporting it without uncertainty is malpractice we'd accept in no other quantitative field. The wave that followed — Cameron Wolfe's <a href="https://cameronrwolfe.substack.com/p/stats-llm-evals">long tutorial</a>, <a href="https://statsforevals.com">statsforevals.com</a>, CIs appearing on serious leaderboards — genuinely moved the field. If you only absorb one idea from that wave, it's enough to change how you read every leaderboard you'll see this year.</p>
+
+<p>But the wave stopped at the shore. Confidence intervals on a mean are the <em>first page</em> of measurement science, and the cracks the six eras left open need the rest of the book: the statistics of <em>noisy graders</em> (human and machine), of <em>rankings</em>, of <em>repeated stochastic runs</em>, of <em>calibrated scores</em>, of <em>sequential decisions</em>. Nearly all of it exists — in epidemiology, psychometrics, survey methodology, and a recent run of excellent papers that almost nobody has translated for practitioners. That translation is this series.</p>
+
+<h2>The series</h2>
+
+<ol class="eb-series">
+  <li><strong>Every Eval Era Created the Next Measurement Problem</strong> — you are here.</li>
+  <li><a href="/build/an-eval-is-a-decision-instrument">An Eval Is a Decision Instrument</a> — the anatomy: five components, five silent assumptions, and the decision the number feeds.</li>
+  <li><a href="/build/error-bars-applied">Error Bars, Applied</a> — clustered items, small n, and why five models tied for first is an honest leaderboard's natural condition.</li>
+  <li><a href="/build/how-many-examples-and-when-can-you-stop">How Many Examples — and When Can You Stop?</a> — power analysis, the paired-design free lunch, and the peeking problem.</li>
+  <li><a href="/build/humans-are-instruments-rater-ops-is-the-eval">Humans Are Instruments</a> — the prevalence paradox, disagreement as diagnostic, and rater ops as engineering.</li>
+  <li><a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">Your LLM Judge Is a Biased, Noisy Instrument. Debias It.</a> — the flagship: judge validation, Rogan–Gladen, and prediction-powered inference.</li>
+  <li><a href="/build/rankings-under-uncertainty-what-arena-numbers-mean">Rankings Under Uncertainty</a> — Bradley–Terry, arena critiques, and what rank ranges actually mean.</li>
+  <li><a href="/build/agent-evals-the-statistics-of-pass-at-k-and-pass-hat-k">Agent Evals: the Statistics of pass@k and pass^k</a> — capability vs reliability, unbiased estimators, and run budgets.</li>
+  <li><a href="/build/building-a-product-eval-instrumented">Building a Product Eval, Instrumented</a> — the end-to-end build, calibration ≠ discrimination, and eval governance.</li>
+</ol>
+
+<p>Every statistical post ships an interactive demo — you can watch a naive confidence interval fail its coverage promise, watch a leaderboard podium dissolve into a statistical tie, watch a biased judge get debiased in real time. Statistics you can poke at sticks better than statistics you read.</p>
+
+<h2>What this means for your eval</h2>
+
+<ul class="eb-checklist">
+  <li><strong>Name your era:</strong> which instrument does your team's headline number come from — exam, preference, judge, agent, environment? Its era's crack is your eval's standing risk.</li>
+  <li>If your eval strategy is "a benchmark we adopted in 2023," check it for the two exam-era diseases: saturation and contamination.</li>
+  <li>If a model grades your outputs, ask what validates the grader — and read <a href="/build/your-llm-judge-is-a-biased-noisy-instrument-debias-it">part 6</a> before trusting its aggregate numbers.</li>
+  <li>If your agent eval runs live environments, schedule instrument re-audits: <em>measure the eval's drift, not just the agent's.</em></li>
+  <li>Put error bars on the next eval number you report. It's the first page — the series is the rest.</li>
+</ul>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>Percy Liang, <a href="https://cs336.stanford.edu/lectures/?trace=lecture_12">CS336 Lecture 12: Evaluation</a> — the construct→metric framing and the era survey this post builds on; the best single hour on eval evolution.</li>
+  <li>Evan Miller, <a href="https://arxiv.org/pdf/2411.00640">Adding Error Bars to Evals</a> (2024) — the paper that started the statistics wave.</li>
+  <li>Hendrycks et al., <a href="https://arxiv.org/abs/2009.03300">MMLU</a> (2021); Wang et al., <a href="https://arxiv.org/abs/2406.01574">MMLU-Pro</a> (2024); Rein et al., <a href="https://arxiv.org/abs/2311.12022">GPQA</a> (2023); Phan et al., <a href="https://arxiv.org/abs/2501.14249">Humanity's Last Exam</a> (2025) — the exam-era difficulty escalation, in four acts.</li>
+  <li>Chiang et al., <a href="https://arxiv.org/abs/2403.04132">Chatbot Arena</a> (2024) and Singh et al., <a href="https://arxiv.org/abs/2504.20879">The Leaderboard Illusion</a> (2025) — the preference era and its critique.</li>
+  <li>Zheng et al., <a href="https://arxiv.org/abs/2306.05685">Judging LLM-as-a-Judge</a> (2023) — the judge era's founding audit.</li>
+  <li>Jimenez et al., <a href="https://arxiv.org/abs/2310.06770">SWE-bench</a> (2023) and OpenAI, <a href="https://openai.com/index/introducing-swe-bench-verified/">SWE-bench Verified</a> (2024) — the agent era and its first instrument-maintenance overhaul.</li>
+  <li>Zhang et al., <a href="https://arxiv.org/abs/2405.00332">GSM1k</a> (2024) — contamination measured directly: up to 13-point drops on a fresh twin benchmark.</li>
+  <li>OpenAI, <a href="https://openai.com/index/gdpval/">GDPval</a> (2025) — the environment/realism era's flagship.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-meta">Beyond Error Bars · Part 1 of 9 · Next: <a href="/build/an-eval-is-a-decision-instrument">An Eval Is a Decision Instrument</a></p>
+<p class="eb-footer-note">Written by a data scientist who builds and lives with evals for a living. Views mine.</p>

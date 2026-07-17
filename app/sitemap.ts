@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
-import { allSlugs } from "./build/posts";
+import { allSlugs } from "./blog/posts";
 import { CATEGORIES } from "./outside/categories";
 
 const BASE = "https://naixin.dev";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const fixed = ["", "/build", "/outside"];
-  const build = allSlugs().map((slug) => `/build/${slug}`);
+  const fixed = ["", "/blog", "/outside"];
+  const build = allSlugs().map((slug) => `/blog/${slug}`);
   const outsideCats = CATEGORIES.map((c) => `/outside/${c.slug}`);
   const outsidePosts = CATEGORIES.flatMap((c) =>
     c.posts.map((p) => `/outside/${c.slug}/${p.slug}`)

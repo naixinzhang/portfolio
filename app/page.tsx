@@ -15,21 +15,22 @@ function HomeContent({ views }: { views: number }) {
     <div className="max-w-3xl mx-auto px-6 py-10">
       <section>
         <h1 className="text-4xl sm:text-5xl font-serif mb-6">Hello.</h1>
-        <div className="max-w-2xl space-y-4 font-serif text-[17px] leading-[1.7] font-light text-[var(--foreground)]">
+        <div className="max-w-2xl space-y-4 font-serif text-[16px] leading-[1.55] font-light text-[var(--foreground)]">
           <p>
-            I&rsquo;m Naixin — a full-stack data scientist at Scale AI in the
-            SF Bay Area. In the AI era,{" "}
-            <span className="glow">
-              I see myself less as a traditional modeler and more as a builder
-            </span>
-            : I enjoy turning ambiguous business problems into systems that
-            are thoughtful, useful, and shipped.
+            Hi, I&rsquo;m Naixin 👋 — a full-stack data scientist at Scale AI,
+            based in the SF Bay Area.
           </p>
           <p>
-            The work I&rsquo;m most drawn to sits at the intersection of data,
-            product, engineering, and execution. Good AI building requires
-            rigor, taste, and the ability to move quickly from abstraction to
-            reality.
+            In the AI era, I think of myself{" "}
+            <span className="glow">
+              less as a traditional modeler and more as a builder
+            </span>
+            : someone who takes ambiguous business problems and turns them into
+            systems that are thoughtful, useful, and — crucially — actually
+            shipped. My favorite work lives at the messy intersection of data,
+            product, engineering, and execution. Building good AI takes rigor,
+            taste, and a willingness to leap from whiteboard to reality before
+            the ink dries.
           </p>
 
           <div className="flex gap-4 py-2">
@@ -64,16 +65,18 @@ function HomeContent({ views }: { views: number }) {
           </div>
 
           <p>
-            Outside work, I spend my time traveling, gardening, collecting
-            Japanese tableware, playing tennis, and learning CrossFit. I also
-            enjoy studying companies through the lens of value investing,
-            which has become one of my favorite ways to think.
+            Outside of work, you&rsquo;ll find me traveling, gardening, and
+            collecting Japanese tableware (日器) — or on the move: tennis,
+            badminton, marathon training, and getting regularly humbled at
+            CrossFit. I also study companies and industries through the lens of
+            value investing, which has quietly become one of my favorite ways
+            to think.
           </p>
           <p>
-            Together, these hobbies have shaped how I see both work and life:
-            with patience, curiosity, and an appreciation for things that are
-            carefully built and quietly enduring. Thunder, my 85 lb Japanese
-            Akita, is involved in most decisions :p
+            Somehow, all of this adds up to how I approach work and life: with
+            patience, curiosity, and a soft spot for things that are carefully
+            built and quietly enduring. Thunder, my 85 lb Japanese Akita, is
+            involved in most decisions :p
           </p>
         </div>
 

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getPost } from "@/lib/mdx";
+import { renderContent } from "@/lib/renderContent";
 import { allSlugs, findPost } from "../posts";
 
 export function generateStaticParams() {
@@ -25,6 +27,7 @@ export default async function BuildPost({
   const found = findPost(slug);
   if (!found) notFound();
   const { post, bucket } = found;
+  const doc = getPost("blog", slug);
 
   return (
     <article className="max-w-2xl mx-auto px-6 py-16">
@@ -38,16 +41,16 @@ export default async function BuildPost({
         {post.description}
       </p>
 
-      <div className="font-serif text-[16px] leading-[1.75] font-light text-[var(--foreground)] opacity-80">
-        <p>Coming soon.</p>
+      <div className="prose-mono font-serif text-[15px] font-light text-[var(--foreground)] opacity-80">
+        {doc ? renderContent(doc.content) : <p>Coming soon.</p>}
       </div>
 
       <footer className="mt-24 pt-8 border-t border-[var(--border)]/60">
         <Link
-          href="/build"
+          href="/blog"
           className="font-serif text-[14px] italic text-[var(--muted)] hover:text-white transition-colors duration-200"
         >
-          ← Back to Build
+          ← Back to Blog
         </Link>
       </footer>
     </article>
