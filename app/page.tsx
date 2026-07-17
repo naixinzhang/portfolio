@@ -87,8 +87,6 @@ function HomeContent({ views }: { views: number }) {
           <a href="mailto:hello@naixin.dev" className="underline underline-offset-4 decoration-[var(--border)] hover:decoration-current transition-colors">Email</a>
           <span className="mx-3 text-[var(--muted)]">·</span>
           <a href="https://www.linkedin.com/in/naixinzhang1104/" className="underline underline-offset-4 decoration-[var(--border)] hover:decoration-current transition-colors">LinkedIn</a>
-          <span className="mx-3 text-[var(--muted)]">·</span>
-          <a href="https://x.com/" className="underline underline-offset-4 decoration-[var(--border)] hover:decoration-current transition-colors">X</a>
         </p>
 
         <p className="mt-12 text-xs text-[var(--muted)]">
