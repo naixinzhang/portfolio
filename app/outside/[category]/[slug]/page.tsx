@@ -53,7 +53,7 @@ export default async function OutsidePost({
         {entry.description}
       </p>
 
-      <div className="prose-mono font-serif text-[16px] font-light text-[var(--foreground)] opacity-80">
+      <div className="prose-mono font-serif text-[15px] font-light text-[var(--foreground)] opacity-80">
         {doc ? (
           <div dangerouslySetInnerHTML={{ __html: doc.content }} />
         ) : (
