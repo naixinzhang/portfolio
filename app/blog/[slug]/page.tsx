@@ -37,13 +37,15 @@ export default async function BuildPost({
   const { slug } = await params;
   const found = findPost(slug);
   if (!found) notFound();
-  const { post, part } = found;
+  const { post, part, bucket } = found;
   const doc = getPost("blog", slug);
 
   return (
     <article className="max-w-2xl mx-auto px-6 py-16">
       <p className="font-sans text-[12px] font-semibold uppercase tracking-[0.14em] mb-4">
-        <span className="text-[var(--eb-accent)]">Beyond Error Bars · Part {part}</span>
+        <span className="text-[var(--eb-accent)]">
+          {bucket === "Evaluate" ? `Beyond Error Bars · Part ${part}` : bucket}
+        </span>
         <span className="font-normal text-[var(--muted)]"> · {formatDate(post.date)}</span>
       </p>
       <h1 className="font-sans text-[1.35rem] sm:text-[1.55rem] font-bold leading-[1.25] tracking-tight mb-3">

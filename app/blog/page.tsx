@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { BUCKETS } from "./posts";
 
-export const metadata = { title: "Beyond Error Bars — Naixin Zhang" };
+export const metadata = { title: "Blog — Naixin Zhang" };
 
 const posts = BUCKETS[0].posts;
+const life = BUCKETS.find((b) => b.slug === "life")?.posts ?? [];
 
 export default function BuildPage() {
   return (
@@ -38,6 +39,23 @@ export default function BuildPage() {
           </li>
         ))}
       </ul>
+
+      {life.map((post) => (
+        <div key={post.slug} className="flex items-baseline mt-10">
+          <span className="font-mono text-[13px] text-[var(--muted)] shrink-0 w-[6.5rem] tabular-nums">
+            {post.date}
+          </span>
+          <p className="font-serif text-[17px] leading-[1.6] text-[var(--foreground)]">
+            <Link
+              href={`/blog/${post.slug}`}
+              className="transition-opacity duration-200 hover:opacity-50"
+            >
+              {post.title}
+            </Link>
+            <span className="text-[var(--muted)]"> — {post.description}</span>
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

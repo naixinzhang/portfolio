@@ -14,20 +14,6 @@ export type Category = {
 
 export const CATEGORIES: Category[] = [
   {
-    slug: "running",
-    name: "Running",
-    intro: "Slow miles, and what they give back.",
-    card: "From a first 10K to race mornings — patience, thinking time, and effort that always pays back.",
-    posts: [
-      {
-        slug: "a-game-that-cannot-be-gamed",
-        title: "A Game That Cannot Be Gamed",
-        description:
-          "Finishing the San Francisco First Half Marathon, six months after a 10K got me hooked.",
-      },
-    ],
-  },
-  {
     slug: "gardening",
     name: "Gardening",
     intro: "Seasonal notes from the garden.",

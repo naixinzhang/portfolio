@@ -85,6 +85,21 @@ export const BUCKETS: Bucket[] = [
       },
     ],
   },
+  {
+    slug: "life",
+    name: "Life",
+    card: "Occasional posts from away from the keyboard.",
+    intro: "Occasional posts from away from the keyboard.",
+    posts: [
+      {
+        slug: "a-game-that-cannot-be-gamed",
+        date: "2026-07-26",
+        title: "A Game That Cannot Be Gamed",
+        description:
+          "Finishing the San Francisco First Half Marathon, six months after a 10K got me hooked.",
+      },
+    ],
+  },
 ];
 
 export function findPost(slug: string):
