@@ -4,7 +4,9 @@ import { BUCKETS } from "./posts";
 export const metadata = { title: "Blog — Naixin Zhang" };
 
 const posts = BUCKETS[0].posts;
-const life = BUCKETS.find((b) => b.slug === "life")?.posts ?? [];
+const life = BUCKETS.filter((b) => b.slug !== "evaluate")
+  .flatMap((b) => b.posts)
+  .sort((a, b) => b.date.localeCompare(a.date));
 
 export default function BuildPage() {
   return (

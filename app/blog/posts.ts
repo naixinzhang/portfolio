@@ -86,6 +86,21 @@ export const BUCKETS: Bucket[] = [
     ],
   },
   {
+    slug: "career",
+    name: "Career",
+    card: "Reflections on building a data science career.",
+    intro: "Reflections on building a data science career.",
+    posts: [
+      {
+        slug: "what-five-years-at-a-startup-taught-me",
+        date: "2026-01-01",
+        title: "What Five Years at a Startup Taught Me",
+        description:
+          "Sixteen things I believe now that I didn't believe as a new data scientist — about impact, shipping, failing, and the parts of life a job doesn't cover.",
+      },
+    ],
+  },
+  {
     slug: "life",
     name: "Life",
     card: "Occasional posts from away from the keyboard.",
