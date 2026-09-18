@@ -6,8 +6,8 @@ export const metadata = { title: "Blog — Naixin Zhang" };
 const SERIES_DATE = "2026-06-01";
 
 const seriesPosts = BUCKETS[0].posts;
-const standalone = BUCKETS.filter((b) => b.slug !== "evaluate").flatMap(
-  (b) => b.posts
+const standalone = BUCKETS.filter((b) => b.slug !== "evaluate").flatMap((b) =>
+  b.posts.map((p) => ({ ...p, kicker: b.name }))
 );
 
 type Entry =
@@ -19,13 +19,24 @@ const entries: Entry[] = [
   ...standalone.map((post) => ({ kind: "post" as const, date: post.date, post })),
 ].sort((a, b) => b.date.localeCompare(a.date));
 
+function Kicker({ date, label }: { date: string; label: string }) {
+  return (
+    <div className="shrink-0 w-[6.5rem]">
+      <div className="font-mono text-[13px] text-[var(--muted)] tabular-nums">
+        {date}
+      </div>
+      <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-[var(--muted)] opacity-65 mt-[3px]">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 function SeriesBlock() {
   return (
     <div>
       <div className="flex items-baseline">
-        <span className="font-mono text-[13px] text-[var(--muted)] shrink-0 w-[6.5rem] tabular-nums">
-          {SERIES_DATE}
-        </span>
+        <Kicker date={SERIES_DATE} label="Evaluation" />
         <p className="font-serif text-[17px] leading-[1.6] text-[var(--foreground)]">
           Beyond Error Bars
           <span className="text-[var(--muted)]">
@@ -71,9 +82,7 @@ export default function BuildPage() {
         const { post } = entry;
         return (
           <div key={post.slug} className={`flex items-baseline ${spacing}`}>
-            <span className="font-mono text-[13px] text-[var(--muted)] shrink-0 w-[6.5rem] tabular-nums">
-              {post.date}
-            </span>
+            <Kicker date={post.date} label={post.kicker} />
             <p className="font-serif text-[17px] leading-[1.6] text-[var(--foreground)]">
               <Link
                 href={`/blog/${post.slug}`}
