@@ -86,6 +86,21 @@ export const BUCKETS: Bucket[] = [
     ],
   },
   {
+    slug: "leaderboards",
+    name: "Leaderboards",
+    card: "How public model rankings get built, what they actually claim, and how to read one.",
+    intro: "How public model rankings get built — and how to read one.",
+    posts: [
+      {
+        slug: "how-do-you-rank-an-ai",
+        date: "2026-09-17",
+        title: "How Do You Rank an AI?",
+        description:
+          "Three years of the Arena leaderboard's changelog, read as a history of how AI got measured.",
+      },
+    ],
+  },
+  {
     slug: "career",
     name: "Career",
     card: "Reflections on building a data science career.",

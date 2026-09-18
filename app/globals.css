@@ -1114,3 +1114,180 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---- Leaderboard timeline (standalone: How Do You Rank an AI?) ---- */
+.eb-tl {
+  margin: 2.25rem 0 2.75rem;
+  font-family: var(--font-sans);
+}
+.eb-tl-head {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--eb-accent);
+  margin-bottom: 1.35rem;
+}
+.eb-tl-list { list-style: none; margin: 0; padding: 0; }
+.eb-tl-item {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  column-gap: 0.9rem;
+  padding-bottom: 1.6rem;
+  position: relative;
+}
+.eb-tl-item:last-child { padding-bottom: 0; }
+.eb-tl-item::before {
+  content: "";
+  position: absolute;
+  left: calc(0.55rem - 0.5px);
+  top: 1.1rem;
+  bottom: -0.2rem;
+  width: 1px;
+  background: var(--border);
+}
+.eb-tl-item:last-child::before { display: none; }
+.eb-tl-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--background, #fff);
+  border: 1.5px solid var(--muted);
+  margin-top: 0.42rem;
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+}
+.eb-tl-item[data-first="true"] .eb-tl-dot {
+  background: var(--eb-accent);
+  border-color: var(--eb-accent);
+}
+.eb-tl-meta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.eb-tl-what {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--foreground);
+  margin: 0.18rem 0 0.24rem;
+}
+.eb-tl-fix {
+  font-size: 13px;
+  line-height: 1.58;
+  color: var(--muted);
+  margin: 0;
+}
+.eb-tl-fix strong { color: var(--foreground); font-weight: 600; }
+.eb-tl-note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 1.35rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+/* single-stat bar */
+.eb-share { margin: 2rem 0 2.25rem; }
+.eb-share-bar {
+  display: flex;
+  height: 28px;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.eb-share-easy { background: var(--eb-tint); flex: 0 0 94.5%; }
+.eb-share-hard { background: var(--eb-accent); flex: 0 0 5.5%; }
+.eb-share-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+.eb-share-labels strong { color: var(--foreground); font-weight: 600; }
+
+/* ---- column-header evolution strip ---- */
+.eb-cols { margin: 2rem 0 2.5rem; font-family: var(--font-sans); }
+.eb-cols-row { margin-bottom: 1.1rem; }
+.eb-cols-row:last-of-type { margin-bottom: 0; }
+.eb-cols-when {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+.eb-cols-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+.eb-col {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.eb-col-new {
+  border-color: var(--eb-accent);
+  background: var(--eb-tint);
+  color: var(--eb-accent);
+  font-weight: 600;
+}
+.eb-cols-key {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 1.1rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+.eb-cols-key strong { color: var(--foreground); font-weight: 600; }
+
+/* ---- sourced figure ---- */
+.eb-shot { margin: 2rem 0 2.5rem; }
+.eb-shot img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: block;
+}
+.eb-shot figcaption {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-top: 0.7rem;
+  font-style: italic;
+}
+
+/* ---- glossary list (standalone leaderboard post) ---- */
+.eb-gloss { margin: 2rem 0 2.75rem; font-family: var(--font-sans); }
+.eb-gloss dl { margin: 0; }
+.eb-gloss dt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--eb-accent);
+  margin: 0 0 0.3rem;
+}
+.eb-gloss dd {
+  margin: 0 0 1.35rem;
+  padding: 0 0 1.35rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--muted);
+}
+.eb-gloss dd:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.eb-gloss dd strong { color: var(--foreground); font-weight: 600; }

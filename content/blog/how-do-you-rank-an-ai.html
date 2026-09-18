@@ -1,0 +1,251 @@
+---
+title: "How Do You Rank an AI?"
+description: "Three years of the Arena leaderboard's changelog, read as a history of how AI got measured."
+date: 2026-09-17
+draft: false
+---
+
+<p>The idea behind the most-watched AI leaderboard is simple enough to explain at dinner. You type a question. Two AI models answer it, side by side, and you aren&rsquo;t told which is which. You pick the better answer. Do that a few million times, and you have a ranking.</p>
+
+<p>That&rsquo;s it. That&rsquo;s the whole premise.</p>
+
+<p>What almost nobody reads is the maintenance log. <a href="https://arena.ai/blog/leaderboard-changelog">Arena publishes a changelog</a> &mdash; every change to how the leaderboard works, dated, in public. Most of its entries are housekeeping: a new model was added. But scattered among them are a couple of dozen entries that quietly rewrite the rules, and read in order they tell a story that isn&rsquo;t really about leaderboards at all. It&rsquo;s a story about how fast the thing being measured kept moving, and what had to be invented each time it moved.</p>
+
+<p>I spend my working life on this kind of measurement, so I read these entries the way other people read release notes for a game they play. Here is what three years of them say.</p>
+
+<figure class="eb-tl">
+  <figcaption class="eb-tl-head">Six times the scoreboard had to change</figcaption>
+  <ul class="eb-tl-list">
+
+    <li class="eb-tl-item" data-first="true">
+      <span class="eb-tl-dot"></span>
+      <div>
+        <div class="eb-tl-meta">Dec 2023 &middot; the math</div>
+        <p class="eb-tl-what">Counting wins gave the wrong answer</p>
+        <p class="eb-tl-fix">Opponents aren&rsquo;t equally hard. Switched to a 1952 model that <strong>works strength out from the whole pattern of results</strong> &mdash; the only time the ranking math has changed since.</p>
+      </div>
+    </li>
+
+    <li class="eb-tl-item">
+      <span class="eb-tl-dot"></span>
+      <div>
+        <div class="eb-tl-meta">Aug 2024 &middot; the voters</div>
+        <p class="eb-tl-what">Style was beating substance</p>
+        <p class="eb-tl-fix">Bullet points and length sway a vote. Measured how much, then <strong>subtracted it out</strong>.</p>
+      </div>
+    </li>
+
+    <li class="eb-tl-item">
+      <span class="eb-tl-dot"></span>
+      <div>
+        <div class="eb-tl-meta">Jul&ndash;Oct 2025 &middot; the ballots</div>
+        <p class="eb-tl-what">Not every vote was a vote</p>
+        <p class="eb-tl-fix">Repeated prompts (<strong>~10% of votes</strong>), users unmasking the model first (<strong>&lt;4%</strong>), odd voting patterns, models matched against themselves &mdash; all filtered out.</p>
+      </div>
+    </li>
+
+    <li class="eb-tl-item">
+      <span class="eb-tl-dot"></span>
+      <div>
+        <div class="eb-tl-meta">Jul 2025 &middot; the bill</div>
+        <p class="eb-tl-what">Knowing how sure you are got expensive</p>
+        <p class="eb-tl-fix">Replaced <strong>a thousand simulations with one formula</strong> &mdash; same margin of error, a fraction of the compute.</p>
+      </div>
+    </li>
+
+    <li class="eb-tl-item">
+      <span class="eb-tl-dot"></span>
+      <div>
+        <div class="eb-tl-meta">Nov 2025 &middot; the test</div>
+        <p class="eb-tl-what">The questions got too easy</p>
+        <p class="eb-tl-fix">Models outgrew everyday prompts. Started ranking on <strong>the hardest 5.5%</strong> of what real users actually send.</p>
+      </div>
+    </li>
+
+    <li class="eb-tl-item">
+      <span class="eb-tl-dot"></span>
+      <div>
+        <div class="eb-tl-meta">Jun 2026 &middot; the task</div>
+        <p class="eb-tl-what">&ldquo;Answer&rdquo; stopped being the right word</p>
+        <p class="eb-tl-fix">Models now do multi-step work. The new scoreboard grades <strong>whether the job got done</strong> &mdash; files produced, retries needed, pushback from the user.</p>
+      </div>
+    </li>
+
+  </ul>
+  <p class="eb-tl-note">Every entry below is dated and public. Only the first one changed how the ranking is calculated; everything after it changed <em>what gets counted</em>.</p>
+</figure>
+
+<h2>1. You can&rsquo;t just count wins</h2>
+
+<p>The first serious change came in December 2023, and it fixed something anyone who follows sports already understands intuitively: <strong>a win only means something relative to who you played.</strong></p>
+
+<p>A tennis player with ten victories over beginners is not obviously better than one with five victories over top seeds. Counting wins gets you the wrong answer whenever the schedule isn&rsquo;t even &mdash; and in an arena where matchups are handed out semi-randomly, it never is.</p>
+
+<p>The fix was to stop counting and start <em>inferring</em>. The original leaderboard used <strong>Elo</strong> &mdash; the chess rating system, which nudges your score up or down after each match. Elo is simple and it works, but it has an awkward property: because it updates match by match, the answer depends on the order the votes happened to arrive.</p>
+
+<p>So Arena moved to <strong>Bradley&ndash;Terry</strong>, a model published in 1952 for exactly this problem. Instead of updating as it goes, it looks at the entire history of who beat whom at once and works backwards to a single strength number per model &mdash; automatically discounting easy opponents and crediting hard ones. Shuffle the votes into a different order and you get the same answer. (The leaderboard still labels the result &ldquo;Elo,&rdquo; because the number was familiar. Under the hood it has been Bradley&ndash;Terry since December 2023.)</p>
+
+<figure class="eb-cols">
+  <div class="eb-cols-row">
+    <div class="eb-cols-when">The leaderboard &middot; December 2023</div>
+    <div class="eb-cols-strip">
+      <span class="eb-col">Model</span>
+      <span class="eb-col">Arena Elo rating</span>
+      <span class="eb-col">MT-bench (score)</span>
+      <span class="eb-col">MMLU</span>
+      <span class="eb-col">License</span>
+    </div>
+  </div>
+  <div class="eb-cols-row">
+    <div class="eb-cols-when">The leaderboard &middot; August 2024</div>
+    <div class="eb-cols-strip">
+      <span class="eb-col eb-col-new">Rank* (UB)</span>
+      <span class="eb-col eb-col-new">Delta</span>
+      <span class="eb-col">Model</span>
+      <span class="eb-col">Arena Score</span>
+      <span class="eb-col eb-col-new">95% CI</span>
+      <span class="eb-col eb-col-new">Votes</span>
+      <span class="eb-col">Organization</span>
+    </div>
+  </div>
+  <figcaption class="eb-cols-key">Eight months apart. The blue columns are new, and they didn&rsquo;t all arrive at once &mdash; the margin of error and the vote count came as the leaderboard started showing its own uncertainty, and <em>Delta</em> is the style correction in the next section. The through-line: the table stopped reporting a number and started reporting <strong>a number, how precise it is, and how much evidence is behind it</strong>. Even the rank got an asterisk, because it&rsquo;s an estimate too.</figcaption>
+</figure>
+
+<p>The same change brought something else that&rsquo;s easy to miss: for the first time, each rating was published with an error bar. The technique is called <strong>bootstrapping</strong> &mdash; resample the pile of votes at random, refit the model, do it a thousand times, and see how far the score wanders. The spread is your margin of error, and it&rsquo;s an admission that a score built from a finite number of votes is known only approximately. The interesting part is the lag. The uncertainty was being calculated from late 2023, but it took months longer to reach the table people actually read. Knowing how sure you are and <em>telling anyone</em> turn out to be two separate decisions.</p>
+
+<p>Worth noticing: <strong>that was the last time the ranking math changed.</strong> Three years on, the algorithm is settled. Everything that follows is about something else entirely.</p>
+
+<h2>2. People vote for the wrong reasons</h2>
+
+<p>Blind voting removes brand loyalty. It does not remove taste.</p>
+
+<p>Give a person two answers with identical content, but format one as a tidy bulleted list and leave the other as a paragraph, and the list tends to win. Longer answers do better than short ones. Confident phrasing does better than hedged phrasing. None of that is about whether the model is <em>right</em>.</p>
+
+<p>It&rsquo;s the same problem as grading essays and accidentally rewarding neat handwriting &mdash; except at the scale of millions of votes, a small bias doesn&rsquo;t average out. It just sits there, quietly built into the ranking.</p>
+
+<p>So Arena added what it calls <strong>style control</strong>. Mechanically it&rsquo;s the same move an economist makes when controlling for a confounder: response length and markdown formatting get added to the Bradley&ndash;Terry model as <em>variables of their own</em>, so the fit estimates how much each one is worth in votes &mdash; and the leftover strength score is what&rsquo;s closer to substance.</p>
+
+<p>And then came my favourite entry in the whole log. In August 2025, Arena launched a leaderboard for search-style answers &mdash; and <em>turned style control off</em> for it. The reasoning is a small masterpiece of thinking clearly: in ordinary chat, how an answer is formatted is a distraction from what you&rsquo;re measuring. In search, how an answer is laid out <em>is part of the product</em>.</p>
+
+<figure class="eb-shot">
+  <img src="/leaderboard/arena-style-control-2024.png" alt="Arena leaderboard with style control applied. A Delta column shows models moving up and down the ranking: Claude 3 Opus up six places, Grok-2-Mini down twelve." />
+  <figcaption>What that correction actually did. The <strong>Delta</strong> column is how far each model moved once formatting and length were accounted for &mdash; Claude 3 Opus up six places, Grok-2-Mini down twelve. Same answers, same votes; only the accounting changed. Figure from <a href="https://www.lmsys.org/blog/2024-08-28-style-control/">LMSYS, &ldquo;Does Style Matter?&rdquo;</a> (2024).</figcaption>
+</figure>
+
+<p class="eb-pullquote">A correction is only a correction if what it removes isn&rsquo;t the thing you were trying to measure.</p>
+
+<h2>3. Not every vote is a vote</h2>
+
+<p>The next stretch of entries is less elegant and more familiar: people started messing with it.</p>
+
+<p>In July 2025 Arena began filtering repeated prompts &mdash; the same handful of questions asked over and over, which had accounted for roughly <strong>10% of all votes</strong>. Those aren&rsquo;t ten independent opinions; they&rsquo;re one opinion, ten times, and the math had been treating them as ten.</p>
+
+<p>The same update added detection for a nicer trick: users who coaxed the model into revealing which one it was, then voted for their preferred brand. Just under <strong>4% of votes</strong>. Two months later came a filter for accounts whose voting patterns were statistically strange, and another for the mildly absurd case of a model being matched against <em>itself</em>.</p>
+
+<p>Each of these is a retroactive admission that an assumption had quietly failed. Bradley&ndash;Terry treats every battle as an <strong>independent</strong> draw &mdash; one person, one honest look at two answers. A user asking the same question two hundred times isn&rsquo;t two hundred draws. Someone who already knows which model is which isn&rsquo;t voting on the answer. Read together, these entries mark a threshold. A leaderboard starts life assuming everyone is playing in good faith, because at first everyone is. It stops assuming that the moment the number starts to matter to somebody.</p>
+
+<h2>4. The questions got too easy</h2>
+
+<p>Then a stranger problem: the test stopped working, because the students got too good.</p>
+
+<p>When models were worse, ordinary questions separated them cleanly. As they improved, most everyday prompts stopped discriminating at all &mdash; every leading model handles them, and the votes come back close to a coin flip. You can collect a million more of them and learn nothing new.</p>
+
+<p>In November 2025 Arena&rsquo;s response was to carve out the hardest prompts real users had actually sent, and rank on those. The detail that stays with me is the size of that set: <strong>5.5%</strong> of all prompts.</p>
+
+<figure class="eb-share">
+  <div class="eb-share-bar">
+    <span class="eb-share-easy"></span><span class="eb-share-hard"></span>
+  </div>
+  <div class="eb-share-labels">
+    <span><strong>94.5%</strong> &mdash; can no longer tell the leading models apart</span>
+    <span><strong>5.5%</strong> &mdash; still can</span>
+  </div>
+</figure>
+
+<p>Turn that around and it says something striking about where AI is. Roughly <strong>94.5% of what people actually ask these systems can no longer tell the leading models apart.</strong> The differences haven&rsquo;t vanished &mdash; they&rsquo;ve just retreated into a narrow band of genuinely hard work.</p>
+
+<h2>5. &ldquo;Answer&rdquo; stopped being the right word</h2>
+
+<p>All of the above assumes a shape: a question goes in, an answer comes out, a person compares two of them. For a couple of years that was what these systems did.</p>
+
+<p>It isn&rsquo;t any more. A model now goes off and <em>works</em> &mdash; writes and runs code, browses, edits files, uses tools, takes minutes rather than seconds, and comes back with something done rather than something said. You aren&rsquo;t grading an essay. You&rsquo;re grading an intern&rsquo;s whole afternoon.</p>
+
+<p>In June 2026 Arena launched a leaderboard for exactly this, and what it measures is worth reading slowly: not which answer you preferred, but <strong>whether files got produced, how often the model had to retry, how many times the user pushed back, and how well it took direction.</strong></p>
+
+<p>That&rsquo;s a different kind of number, and it needs different statistics. &ldquo;Which of these two is better&rdquo; assumes there are two comparable things. &ldquo;Did it get the job done&rdquo; is a success rate &mdash; and success rates are slippery, because the same task can go well one time and badly the next for no visible reason. So you stop asking <em>is it good</em> and start asking two sharper questions: <em>how often does this work at all</em> &mdash; run it a few times, count the wins, which the field calls <strong>pass@k</strong> &mdash; and <em>how often does it work every single time</em>, which is <strong>pass^k</strong>. The first number climbs as you allow more attempts; the second falls. Which one matters depends entirely on whether you can afford a retry.</p>
+
+<h2>6. Knowing how sure you are got expensive</h2>
+
+<p>One last entry, from July 2025, that looks like pure plumbing and isn&rsquo;t.</p>
+
+<p>Every leaderboard number should come with a margin of error &mdash; the honest admission that with a finite number of votes, you know the ranking only approximately. The standard way to work that out is brute force: shuffle your data, recompute, repeat a thousand times, and see how much the answer moves. It&rsquo;s simple, it&rsquo;s reliable, and it costs a thousand times one calculation.</p>
+
+<p>That technique is the bootstrap from the beginning of this post. In July 2025 Arena replaced it with a <strong>closed-form interval</strong> &mdash; the Central Limit Theorem applied to what statisticians call an M&#8209;estimator, which Bradley&ndash;Terry is. Same intervals, one pass instead of a thousand.</p>
+
+<p>Nothing statistical changed; the intervals mean what they meant before. What changed is the budget. When a single test was one question and one short answer, running anything a thousand times was free. When a single test is an AI working for twenty minutes, nothing is free &mdash; and the cost of <em>knowing how uncertain you are</em> becomes a line item like any other.</p>
+
+<p>The same update carried a second change that cut the other way. Models don&rsquo;t all get the same number of matchups, and the fix &mdash; <strong>reweighting</strong> each battle by how often that pairing shows up, applied the same day &mdash; buys fairness at the cost of precision, so the margins of error got <em>wider</em>. More pairs of models now overlap, which is to say the leaderboard went from calling them ranked to calling them tied. On the day it got cheaper to measure uncertainty, it also admitted there was more of it.</p>
+
+<h2>The pattern</h2>
+
+<p>Line the entries up and they&rsquo;re all the same move, made over and over.</p>
+
+<p>The ranking math was settled in year one and hasn&rsquo;t been touched since. Everything after that was a response to the ground shifting: people voted on style, so style got measured and removed. Some votes weren&rsquo;t sincere, so sincerity got tested. Ordinary questions stopped separating good from great, so the questions got harder. Models stopped answering and started working, so the scoreboard stopped grading answers.</p>
+
+<p>Measurement is never finished, because the thing you&rsquo;re measuring keeps becoming a different thing. What I find genuinely unusual about Arena is not that this happened &mdash; it happens to every measurement system eventually &mdash; but that they wrote it all down in public, dated, as it went.</p>
+
+<h2>The words, if you want them</h2>
+
+<p>Everything above has a name in the literature. None of it was invented for AI &mdash; the ranking model predates the transistor era, and the rest is standard applied statistics pointed at a new problem.</p>
+
+<div class="eb-gloss">
+  <dl>
+    <dt>Elo</dt>
+    <dd>The chess rating system. Updates after each match, which means the result depends on the order the votes happened to arrive. Used until December 2023.</dd>
+
+    <dt>Bradley&ndash;Terry</dt>
+    <dd>Fits every vote at once rather than one at a time, and recovers a strength score per model that accounts for <strong>who it played</strong>. Published in 1952; still what the leaderboard runs on. The number is shown on an Elo-like scale purely because that scale was already familiar.</dd>
+
+    <dt>Bootstrap</dt>
+    <dd>Resample the votes at random, refit, repeat a thousand times; how far the answer wanders is your margin of error. Dependable, and expensive.</dd>
+
+    <dt>Closed-form interval</dt>
+    <dd>The Central Limit Theorem applied to an M&#8209;estimator, which Bradley&ndash;Terry is. <strong>The same margin of error, derived in a single pass</strong> instead of a thousand refits. Replaced the bootstrap in July 2025.</dd>
+
+    <dt>Style control</dt>
+    <dd>Response length and formatting entered into the model as variables of their own, so their pull on a vote gets estimated and then removed. Switched off for search, where presentation is part of the product.</dd>
+
+    <dt>Reweighting</dt>
+    <dd>Correcting for models having wildly unequal numbers of matchups. Fairer &mdash; but it <strong>widens the intervals</strong>. Precision is what you pay with.</dd>
+
+    <dt>Independence</dt>
+    <dd>The assumption every filter is defending: that each battle is one fresh, uninformed judgement. Repeated prompts, leaked model identities and odd voting patterns all break it.</dd>
+
+    <dt>pass@k / pass^k</dt>
+    <dd>For agents: the chance of succeeding <strong>at least once</strong> in k tries, versus the chance of succeeding <strong>every time</strong>. The first rises with k; the second falls.</dd>
+  </dl>
+</div>
+
+<h2>If you just want to read a leaderboard</h2>
+
+<p>Three habits, and you&rsquo;ll be ahead of most people quoting these numbers in meetings:</p>
+
+<ul class="eb-checklist">
+  <li><strong>Read the gap, not the rank.</strong> Rank is the twitchiest number on the page &mdash; a model can drop three places while its own score sits perfectly still, simply because others moved. If two models&rsquo; ranges overlap, the honest reading is that nobody knows which is better yet.</li>
+  <li><strong>Ask what was on the test.</strong> Every leaderboard ranks models on some particular mix of questions. If that mix doesn&rsquo;t look like your work, the ranking isn&rsquo;t about you.</li>
+  <li><strong>Check what it measures now.</strong> &ldquo;Best model&rdquo; meant a preferred answer in 2024 and a completed job in 2026. Those are different claims, and a leaderboard from one era doesn&rsquo;t settle a question from the next.</li>
+</ul>
+
+<h2>Sources</h2>
+
+<ol class="eb-refs">
+  <li>LMArena, <a href="https://arena.ai/blog/leaderboard-changelog">Leaderboard Changelog</a> &mdash; the primary source for everything above; every dated change is there.</li>
+  <li>LMSYS Org, <a href="https://www.lmsys.org/blog/2023-12-07-leaderboard/">Chatbot Arena leaderboard update</a> (December 2023) &mdash; the move from win-counting to the 1952 model.</li>
+  <li>LMSYS Org, <a href="https://www.lmsys.org/blog/2024-08-28-style-control/">Does Style Matter?</a> (2024) &mdash; how formatting and length were measured and subtracted.</li>
+  <li>Chiang et al., <a href="https://arxiv.org/abs/2403.04132">Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference</a> (2024) &mdash; the methodology paper behind the arena.</li>
+  <li>LMArena, <a href="https://github.com/lmarena/arena-rank">arena-rank</a> &mdash; the ranking code, open sourced.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-note">Views mine.</p>
