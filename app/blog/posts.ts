@@ -92,6 +92,13 @@ export const BUCKETS: Bucket[] = [
     intro: "How public model rankings get built — and how to read one.",
     posts: [
       {
+        slug: "your-design-picks-your-estimator",
+        date: "2026-09-18",
+        title: "Your Design Picks Your Estimator",
+        description:
+          "Two kinds of model leaderboard need almost entirely different statistics, and which one you are in is decided by your design rather than your taste.",
+      },
+      {
         slug: "how-do-you-rank-an-ai",
         date: "2026-09-17",
         title: "How Do You Rank an AI?",
