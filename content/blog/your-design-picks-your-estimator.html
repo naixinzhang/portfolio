@@ -1,0 +1,279 @@
+---
+title: "Your Design Picks Your Estimator"
+description: "Two kinds of model leaderboard need almost entirely different statistics, and which one you are in is decided by your design rather than your taste."
+date: 2026-09-18
+draft: false
+---
+
+<p class="eb-byline">For data scientists and ML engineers who have to produce, or defend, a model ranking.</p>
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> Ranking by absolute scores and ranking by pairwise preference look like the same problem and need almost entirely different statistics — your experimental design, not your judgement, decides which toolkit is correct.</p>
+  <p><strong>You should care if:</strong> you build, publish, or make decisions from a model leaderboard.</p>
+  <p><strong>Do this today:</strong> answer two questions about your own board — do I observe scores or outcomes, and does every model face the same items? Everything else follows.</p>
+</aside>
+
+<p>Two scenarios. In the first, you run every model on the same five hundred tasks, grade each task, and average. In the second, you show a person two answers to the same prompt, they pick one, and you do that a few hundred thousand times.</p>
+
+<p>Both produce a leaderboard. Both answer &ldquo;which model is better.&rdquo; And almost nothing you learned doing the first transfers to the second.</p>
+
+<p>I&rsquo;ve spent the last few years on the statistics behind model leaderboards and benchmark releases, and the single most expensive mistake I see is not a wrong formula &mdash; it&rsquo;s reaching for the right formula from the wrong regime. This is the map I wish someone had handed me.</p>
+
+<h2>The fork</h2>
+
+<p>Start by naming names, because most people have used both kinds without noticing they were different.</p>
+
+<figure class="eb-ntable">
+  <table>
+    <thead><tr><th>Absolute scores</th><th>Pairwise preference</th></tr></thead>
+    <tbody>
+      <tr><td>MMLU, GPQA, SWE-bench</td><td>LMArena / Chatbot Arena</td></tr>
+      <tr><td>HELM, the HF Open LLM Leaderboard</td><td>Any blind human-preference board</td></tr>
+      <tr><td>Your internal eval harness</td><td>Chess and sports ratings, where this began</td></tr>
+    </tbody>
+  </table>
+</figure>
+
+<p>The obvious difference is what you observe: a number per item, or a winner per matchup. But there&rsquo;s a second axis that matters just as much and gets noticed far less &mdash; whether every model faced the same things. Cross them and you get four cells, not two.</p>
+
+<figure class="eb-matrix">
+  <table>
+    <thead>
+      <tr><th></th><th>Complete design<br>every model does every item</th><th>Incomplete design<br>each faces a different slice</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>Absolute<br>scores</th>
+        <td class="eb-cell-key"><strong>Regime A</strong>Means and paired differences are enough. All the work is in quantifying uncertainty. <em>MMLU, SWE-bench</em></td>
+        <td><strong>Item Response Theory</strong>You have to model how hard each item is before scores are comparable. <em>Epoch AI's benchmarking hub</em></td>
+      </tr>
+      <tr>
+        <th>Relative<br>outcomes</th>
+        <td>Direct win rates are fine. Bradley&ndash;Terry is available but not load-bearing.</td>
+        <td class="eb-cell-key"><strong>Regime B</strong>You must infer a latent strength, because there is no common yardstick. <em>LMArena</em></td>
+      </tr>
+    </tbody>
+  </table>
+  <figcaption>The two cells people actually live in are shaded. The other two are worth knowing because you can fall into them by accident.</figcaption>
+</figure>
+
+<p>Filling in that fourth cell is what makes the picture click. Look at what Bradley&ndash;Terry and Item Response Theory are each doing:</p>
+
+<p class="eb-pullquote">Bradley&ndash;Terry estimates a latent strength while accounting for <em>who you played</em>. Item Response Theory estimates a latent ability while accounting for <em>which items you answered</em>. One idea, two names, because the observation type differs.</p>
+
+<p>That&rsquo;s also why Epoch AI reaches for IRT rather than a plain average: their models don&rsquo;t all run identical item sets, so the means aren&rsquo;t comparable and something has to absorb item difficulty.</p>
+
+<p>Two questions place you:</p>
+
+<ul class="eb-checklist">
+  <li>Do I observe a <strong>score per item</strong>, or <strong>who beat whom</strong>?</li>
+  <li>Does <strong>every model face the same items</strong>?</li>
+</ul>
+
+<h2>What both regimes need</h2>
+
+<p>Before the toolkits diverge, four things are true everywhere. They&rsquo;re short because they&rsquo;re not controversial &mdash; they&rsquo;re just skipped.</p>
+
+<div class="eb-concept">
+  <h3>Estimand before estimator</h3>
+  <p><span class="eb-lbl">What</span> The estimand is the quantity you intend to measure. The estimator is the arithmetic you use to guess it.</p>
+  <p><span class="eb-lbl">Why</span> A leaderboard is a claim about a population &mdash; of tasks, of prompts, of users. If you can&rsquo;t write that population down, the ranking isn&rsquo;t wrong, it&rsquo;s undefined. &ldquo;Model X is better&rdquo; always needs the silent second half: <em>at what, for whom</em>.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Most methodology arguments that feel unresolvable are two people optimising different estimands. Settle the estimand first and the estimator argument usually evaporates.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>A point estimate without an interval isn&rsquo;t a measurement</h3>
+  <p><span class="eb-lbl">Why</span> Every leaderboard number is computed from a finite sample &mdash; of tasks, of votes. Reported bare, it invites readers to treat noise as signal, and rank changes as events.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Publishing the interval is a separate decision from computing it, and the second one lags. Arena was bootstrapping intervals from December 2023; the 95% CI column didn&rsquo;t reach the table people actually read until well into the following year.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Ranks are not scores</h3>
+  <p><span class="eb-lbl">What</span> A rank is <code>argsort</code> applied to a vector of noisy estimates &mdash; a non-smooth function of every model&rsquo;s score at once.</p>
+  <p><span class="eb-lbl">Why</span> Your own estimate can sit perfectly still while three neighbours drift past it. Scores move continuously; ranks can only jump.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> The delta method needs differentiability, so closed-form standard errors don&rsquo;t give you rank intervals. <strong>For ranks you must resample</strong> &mdash; even when the coefficients themselves have a perfectly good closed form. Knowing which of the two you need is where a lot of compute gets wasted.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>A tie is a result</h3>
+  <p><span class="eb-lbl">Why</span> &ldquo;These two are not distinguishable with the evidence we have&rdquo; is a complete, reportable finding. Forcing an order onto it manufactures a claim the data doesn&rsquo;t support.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Product surfaces want a strict ordering, so ties get quietly broken by the point estimate. If you publish hard ranks, publish the intervals beside them so a reader can see which neighbours overlap.</p>
+</div>
+
+<h2>Regime A: absolute scores</h2>
+
+<p>Here every model runs the same items and you get a number for each. The ranking part is trivial &mdash; sort the means. All of the difficulty moves into <em>how sure you are</em>, and the whole regime rests on one reframe.</p>
+
+<div class="eb-concept">
+  <h3>Decompose the variance before you measure it</h3>
+  <p><span class="eb-lbl">What</span> A per-item score is <code>y&#8320; = &mu;&#8320; + &epsilon;&#8320;</code>: the model&rsquo;s expected score on that item, plus run noise. So a benchmark mean carries two sources of variation, <code>&sigma;&sup2;<sub>task</sub> + &sigma;&sup2;<sub>noise</sub></code>.</p>
+  <p><span class="eb-lbl">Why</span> Which one you&rsquo;re estimating decides your whole design. Re-running a fixed item set only ever touches the second term. But the items themselves are a sample from the domain you claim to measure, and that&rsquo;s usually the bigger term.</p>
+  <p><span class="eb-lbl">Worked</span> Set temperature to zero. Your three runs now agree exactly, the run-to-run spread is zero, and a scoreboard built on it reports that you know the model&rsquo;s capability precisely. You don&rsquo;t. You have 82 items, and 82 items can&rsquo;t pin a score tighter than roughly &plusmn;8 points however many times you re-run them.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Reporting run-to-run variance as if it were measurement uncertainty. It is the smaller number and it is the wrong one, so it flatters you twice. And don&rsquo;t reach for low temperature as a variance-reduction trick &mdash; Miller&rsquo;s eval-statistics paper shows it can shunt variance into the conditional means instead, or buy a smaller spread with outright bias.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Watch the degrees of freedom</h3>
+  <p><span class="eb-lbl">What</span> An estimated standard error is itself an estimate, with its own relative error of roughly <code>1/&radic;(2&middot;df)</code>.</p>
+  <p><span class="eb-lbl">Worked</span> Three repeat runs give you two degrees of freedom, so that SD is about <strong>50% uncertain</strong>. Twenty jackknife buckets give 19 df &rarr; 16%. Eighty-two items give 81 df &rarr; 8%. And a correct 95% interval from 2 df needs a t-multiplier of <strong>4.30</strong>, not 1.96 &mdash; a &plusmn;1&nbsp;SD bar drawn from three runs covers the truth roughly a third to half the time, against the 68% readers assume.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Small-<em>k</em> repeat designs feel empirical &mdash; you <em>measured</em> the variability rather than assuming a formula. But at k=3 you measured it so badly that a formula would have done better.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Jackknife, and when it collapses into something you already know</h3>
+  <p><span class="eb-lbl">What</span> Recompute the statistic leaving out one item at a time; the spread of those leave-one-out values gives the standard error.</p>
+  <p><span class="eb-lbl">Worked</span> For a plain mean, the per-item jackknife is <strong>algebraically identical to <code>s/&radic;n</code></strong>. Four lines of code over per-item scores you were already logging, no resampling loop, no seed.</p>
+  <p><span class="eb-lbl">Why</span> Then why run the machinery? Because the same code handles the statistics where no closed form exists &mdash; Elo, a macro-average across categories, pass@k &mdash; and handles clustered items by switching what you leave out. One estimator, every metric.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> This generalises: the general resampling machine collapses to a formula you already recognise whenever the statistic is simple. Use the formula, and save the machine for when it&rsquo;s earning its cost.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Cluster on the real dependency</h3>
+  <p><span class="eb-lbl">What</span> When items arrive in correlated groups &mdash; five questions from one passage, several tasks from one repository &mdash; resample whole groups rather than individual items.</p>
+  <p><span class="eb-lbl">Worked</span> Effective sample size is <code>n<sub>eff</sub> = n / (1 + (m&minus;1)&rho;)</code> for clusters of size <em>m</em> with intra-cluster correlation <code>&rho;</code>. Twenty clusters of five at <code>&rho;</code>=0.5 gives you the power of about 33 independent items, not 100.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Ignoring clustering is the most common way evaluation intervals come out too narrow &mdash; Miller reports naive standard errors understating by up to 3&times; on real reading-comprehension evals. And the buckets must be the actual dependency structure. Random bucketing is unbiased but wasteful: 20 buckets throw away df for nothing.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Compare models on paired differences</h3>
+  <p><span class="eb-lbl">What</span> To compare A and B, work with the per-item difference <code>d&#8320; = y&#8320;&#7468; &minus; y&#8320;&#7470;</code> rather than differencing two independent means.</p>
+  <p><span class="eb-lbl">Why</span> Item difficulty is shared, so it cancels. The variance you&rsquo;re left with is only the part where the models actually disagree.</p>
+  <p><span class="eb-lbl">Worked</span> With between-model correlation <code>r</code>, the difference SD is <code>&sigma;<sub>d</sub> = &sigma;&radic;(2(1&minus;r))</code>. Typical <code>r</code> of 0.5&ndash;0.7 puts <code>&sigma;<sub>d</sub></code> at 0.8&ndash;1.0&nbsp;<code>&sigma;</code> &mdash; and at <code>r</code>=0.5 the paired test needs roughly half the items of the unpaired one for the same power.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Pairing is free power that most eval reports leave on the table, because scores get published as separate means and the comparison happens by eyeballing two error bars. Overlapping intervals do not mean two models are indistinguishable when the comparison is paired.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Fix the detectable effect before you fix n</h3>
+  <p><span class="eb-lbl">What</span> Decide the smallest gap that would change a decision, then solve for the item count that can see it.</p>
+  <p><span class="eb-lbl">Worked</span> For a paired comparison at 80% power and &alpha;=0.05, <code>n = 7.85&middot;&sigma;<sub>d</sub>&sup2;/&Delta;&sup2;</code>. With per-item SD of 0.35 on a 0&ndash;100 scale: a 10-point gap needs ~97 items, 5 points needs ~385, 3 points needs ~1,069. Invert it and 82 items can&rsquo;t resolve anything under about 11 points &mdash; which means most adjacent entries on a small benchmark are statistical ties and should be shown as such.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Running the calculation backwards. Given a fixed n, people compute what&rsquo;s detectable and then quietly redefine that as the gap worth caring about. Also: at equal compute, buying items beats buying repeat runs and it isn&rsquo;t close &mdash; tripling the item count narrows the interval by 42%, where three reruns narrow it by 9&ndash;29% depending on noise share, because reruns only shrink the smaller term.</p>
+</div>
+
+<p>The rest of Regime A is real but compresses well:</p>
+
+<div class="eb-gloss">
+  <dl>
+    <dt>Wilson interval</dt>
+    <dd>For binary metrics, and for scores near 0 or 100 where the interval is asymmetric. The Wald interval most leaderboards use implicitly under-covers badly below a few hundred items.</dd>
+    <dt>Noise share</dt>
+    <dd>The fraction of per-item variance that is run-to-run. Measure it <em>once</em>, on a subset, from one repeat &mdash; you don&rsquo;t have to pay for it on every model.</dd>
+    <dt>Conservative upper bound</dt>
+    <dd>If the goal really is fixed-benchmark reproducibility, the single-run SE is an upper bound on the run-to-run SE. You&rsquo;re never under-stating by using it.</dd>
+    <dt>Monte Carlo validation</dt>
+    <dd>Before adopting an estimator, simulate a world where you know the truth and check coverage. A 95% interval that covers 72% of the time is a bug you will not otherwise see.</dd>
+    <dt>Non-linear statistics</dt>
+    <dd>Macro-averages across categories, pass@k, anything with an <code>argsort</code> in it. No closed form &mdash; this is where resampling earns its cost.</dd>
+  </dl>
+</div>
+
+<h2>Regime B: pairwise preference</h2>
+
+<p>Here there is no common yardstick. You observe only who beat whom, on an incomplete and usually unbalanced graph of matchups. Sorting is no longer trivial; it&rsquo;s the whole problem.</p>
+
+<div class="eb-concept">
+  <h3>Bradley&ndash;Terry, and why not Elo</h3>
+  <p><span class="eb-lbl">What</span> Bradley&ndash;Terry (1952) fits a latent strength per competitor by maximum likelihood over the full history of pairwise outcomes. Mechanically it&rsquo;s a logistic regression on an extremely sparse design matrix: each battle touches exactly two parameters.</p>
+  <p><span class="eb-lbl">Why</span> Elo is the streaming approximation &mdash; it updates after each match, which is useful when you can&rsquo;t refit, and costs you order-dependence: the same votes arriving in a different sequence give a different answer.</p>
+  <p><span class="eb-lbl">Worked</span> Two models, 1,000 battles, A wins 550. <code>&delta;&#770; = logit(0.55) = 0.201</code>, <code>SE = 1/&radic;(n&middot;p(1&minus;p)) = 0.064</code>, so the 95% interval is [0.076, 0.325]. On the Elo-like display scale (&times;400/ln10): <strong>A is 35 points ahead, 95% CI [13, 57]</strong>.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Arena still labels the output &ldquo;Elo&rdquo; for familiarity, but has been fitting Bradley&ndash;Terry since December 2023. If someone tells you Elo suits streaming settings better, note that the most streaming setting in existence dropped it precisely because sequential updating was the liability.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Strength of schedule is why raw win rate breaks</h3>
+  <p><span class="eb-lbl">What</span> An aggregate win rate is only interpretable when opponents are of comparable difficulty. On an unbalanced graph it silently encodes who you happened to face.</p>
+  <p><span class="eb-lbl">Worked</span> Under a full round robin the top model beats everyone below it and lands near 90%. Under a budget-conscious schedule it mostly plays the second-place model &mdash; close to a coin flip &mdash; and lands near 55%. A mid-tier model that drew a couple of weak opponents lands at 70%. <strong>Raw win rate ranks the mid-tier model first.</strong></p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> The bias has a direction: the harder you optimise the matchup budget, the more you suppress strong models. This is not a tail risk, it is the systematic consequence, and it&rsquo;s the single most important thing Bradley&ndash;Terry is buying you.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Control the confounders you can&rsquo;t filter</h3>
+  <p><span class="eb-lbl">What</span> Some biases are present in every observation, so removing the affected rows isn&rsquo;t available. You add them to the model as covariates and let the fit estimate their pull.</p>
+  <p><span class="eb-lbl">Worked</span> Style control puts response length and markdown formatting into the Bradley&ndash;Terry fit as their own variables. Arena has since added an indicator for direct-chat battles (position bias toward the first option) and one for same-organisation matchups.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> A control is only a control if what it removes isn&rsquo;t what you&rsquo;re measuring. Arena runs style control on chat and <em>turns it off</em> for search, where how an answer is laid out is part of the product. Same knob, opposite setting, because the estimand changed.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Independence is the assumption every filter defends</h3>
+  <p><span class="eb-lbl">What</span> Bradley&ndash;Terry treats each battle as an independent draw: one person, one uninformed look at two answers.</p>
+  <p><span class="eb-lbl">Worked</span> Arena&rsquo;s published filters, read as a list of ways that fails: repeated high-frequency prompts (about <strong>10% of votes</strong>) &mdash; two hundred asks of one question are not two hundred draws; users who extract the model&rsquo;s identity before voting (<strong>under 4%</strong>) &mdash; not a judgement about the answer; accounts with statistically anomalous voting patterns; and models matched against themselves, which carry no information at all.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> The filter list <em>is</em> the list of ways your independence assumption has already failed. If you run a preference board and have no such list, that isn&rsquo;t evidence the problem is absent.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Reweighting trades precision for fairness</h3>
+  <p><span class="eb-lbl">What</span> Models accumulate wildly unequal matchup counts. Weighting battles by the inverse of how often that pairing appears corrects the resulting bias.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> It widens the intervals, and Arena says so plainly: more model pairs then overlap, which means more entries become ties. Don&rsquo;t attribute that widening to a co-shipped change in how intervals are <em>computed</em> &mdash; swapping bootstrap for a closed form is asymptotically equivalent and doesn&rsquo;t move the width. Two changes, one release note.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Spend comparisons where they change the ranking</h3>
+  <p><span class="eb-lbl">What</span> Choose the next matchup to maximise reduction in ranking uncertainty, rather than sampling pairs uniformly.</p>
+  <p><span class="eb-lbl">Worked</span> Ranking is a sorting problem: it needs O(K) informative comparisons, not O(K&sup2;). For 12 models a full round robin is 66 pairs; verifying near-neighbours takes roughly 2K&minus;3 &asymp; 21. The Arena paper&rsquo;s formal version reports reaching a given precision on the win matrix with 4,400 samples against 6,800 for random sampling.</p>
+  <p class="eb-trap"><span class="eb-lbl">Trap</span> Doing this <em>obligates</em> you to Bradley&ndash;Terry. See the previous section, and the crossover below &mdash; this is the most common way a team saves budget and pays it back in bias without noticing.</p>
+</div>
+
+<div class="eb-gloss">
+  <dl>
+    <dt>Graph connectivity</dt>
+    <dd>Bradley&ndash;Terry is only identifiable on a connected comparison graph &mdash; disconnected components have no estimable relative strength. Models you don&rsquo;t rank still carry information between models you do, which is why Arena counts battles involving off-leaderboard entries.</dd>
+    <dt>Rank intervals</dt>
+    <dd>Reported as rank-by-upper-bound. Ranks need resampling even when coefficients don&rsquo;t; see &ldquo;ranks are not scores&rdquo; above.</dd>
+    <dt>Tie models</dt>
+    <dd>Bradley&ndash;Terry has no native tie outcome. Rao&ndash;Kupper posits a perception threshold; Davidson makes tie probability proportional to the geometric mean of the win probabilities. Dropping ties outright is biased.</dd>
+    <dt>Inter-rater reliability</dt>
+    <dd>Cohen's and Fleiss' &kappa;, Krippendorff's &alpha;, Gwet's AC. Rater disagreement is upstream of everything: it sets the noise floor your intervals can never beat. Watch for Kappa's paradox under class imbalance.</dd>
+    <dt>Separability</dt>
+    <dd>The share of model pairs whose intervals don't overlap &mdash; a quality metric for the <em>board</em>, not the models. Arena-Hard-Auto reports 87.4% against MT-Bench's 22.6%.</dd>
+    <dt>Item Response Theory</dt>
+    <dd>The absolute-score analogue of Bradley&ndash;Terry: estimate latent ability while modelling item difficulty. What you need when models run different item sets.</dd>
+  </dl>
+</div>
+
+<h2>The crossover cases</h2>
+
+<p>This is where the framework earns its keep. You don&rsquo;t usually pick the wrong estimator on purpose &mdash; you make an operational decision that moves you to a different cell, and keep the old estimator.</p>
+
+<div class="eb-concept">
+  <h3>You start scheduling adaptively</h3>
+  <p><span class="eb-lbl">Move</span> Complete &rarr; incomplete.</p>
+  <p>Skipping the matchups that are already clearly separated is the right call on budget. But it makes the schedule deliberately unbalanced, and an aggregate win rate is no longer a valid global ordering. <strong>Choosing an adaptive schedule is what obligates you to latent-strength estimation.</strong> Budget saved in comparisons comes back as bias in the ordering unless the estimator moves with the design.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>New models join and old ones aren&rsquo;t re-run</h3>
+  <p><span class="eb-lbl">Move</span> Complete &rarr; incomplete, quietly, over time.</p>
+  <p>A board that started as a clean Regime A drifts out of it the first time you add a model without backfilling, or retire items. Means stop being comparable because they&rsquo;re no longer means over the same population. This is the cell where IRT lives, and it arrives by calendar rather than by decision.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>You start reporting a macro-average</h3>
+  <p><span class="eb-lbl">Move</span> Linear &rarr; non-linear statistic.</p>
+  <p>Averaging per-category scores rather than per-item scores is usually the right reporting choice &mdash; it stops a large category dominating. But the headline number is no longer a simple mean, so <code>s/&radic;n</code> doesn&rsquo;t describe it and the closed form quietly stops applying. Resample at the level the dependency actually lives.</p>
+</div>
+
+<div class="eb-concept">
+  <h3>Your tie rate spikes</h3>
+  <p><span class="eb-lbl">Move</span> Not a move at all &mdash; and that&rsquo;s the point.</p>
+  <p>The instinct is to collect more data. Sometimes that&rsquo;s right, and it&rsquo;s the most expensive of the three possibilities, so check it last. <strong>A high tie rate is a symptom, not an answer.</strong> Work down in this order:</p>
+  <p><span class="eb-lbl">One</span> <strong>Do raters disagree with each other?</strong> Then it&rsquo;s rater noise, and more samples buy you more expensive noise. Fix calibration, guidelines, or rater qualification.</p>
+  <p><span class="eb-lbl">Two</span> <strong>Do they agree, and agree it&rsquo;s a tie?</strong> Then the models really are equivalent on these items, and the fix is a harder or more discriminative item set &mdash; not a larger one. Cohere's prompt-prioritisation work found that selecting on model-disagreement cut indecisive outcomes by 54% in the top quintile.</p>
+  <p class="eb-trap"><span class="eb-lbl">Three</span> <strong>Neither?</strong> Now it&rsquo;s a sample-size question, and now you may spend. And size it up front from a detectable effect &mdash; collecting until the tie breaks is optional stopping, and your false-positive rate ends up nowhere near the 5% you think you&rsquo;re running at.</p>
+</div>
+
+<h2>References &amp; further reading</h2>
+
+<ol class="eb-refs">
+  <li>Evan Miller, <a href="https://arxiv.org/abs/2411.00640">Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations</a> (Anthropic, 2024) &mdash; the reference for Regime A: CLT and clustered standard errors, variance reduction by resampling, paired analysis, and the sample-size formula.</li>
+  <li>Chiang et al., <a href="https://arxiv.org/abs/2403.04132">Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference</a> (ICML 2024) &mdash; the Bradley&ndash;Terry fit and the active sampling rule.</li>
+  <li>LMSYS, <a href="https://www.lmsys.org/blog/2023-12-07-leaderboard/">Chatbot Arena leaderboard update</a> (2023) and <a href="https://www.lmsys.org/blog/2024-08-28-style-control/">Does Style Matter?</a> (2024) &mdash; the move off Elo, and style control.</li>
+  <li>LMArena, <a href="https://arena.ai/blog/leaderboard-changelog">Leaderboard Changelog</a> and <a href="https://github.com/lmarena/arena-rank">arena-rank</a> &mdash; the filters, the reweighting, and the ranking code.</li>
+  <li>Li et al., <a href="https://arxiv.org/abs/2406.11939">From Crowdsourced Data to High-Quality Benchmarks: Arena-Hard and BenchBuilder</a> (2024) &mdash; separability and agreement as metrics for a benchmark itself.</li>
+  <li>Boubdir et al., <a href="https://arxiv.org/abs/2310.14424">Which Prompts Make The Difference? Data Prioritization for Efficient Human LLM Evaluation</a> (Cohere, 2023) &mdash; selecting discriminative prompts to cut indecisive outcomes.</li>
+  <li>Ameli et al., <a href="https://arxiv.org/abs/2412.18407">A Statistical Framework for Ranking LLM-Based Chatbots</a> (2024) &mdash; tie-aware Bradley&ndash;Terry extensions.</li>
+  <li><a href="https://epoch.ai/benchmarks/about">Epoch AI benchmarking methodology</a> &mdash; item response theory applied to model evaluation.</li>
+</ol>
+
+<hr class="eb-rule">
+
+<p class="eb-footer-note">Views mine.</p>

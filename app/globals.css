@@ -437,7 +437,7 @@ a { color: inherit; }
 .eb-series li { margin-bottom: 0.85rem; padding-left: 0.25rem; }
 .eb-refs { padding-left: 1.5rem; font-size: 13px; }
 .eb-refs li { margin-bottom: 0.6rem; }
-.eb-checklist { list-style: none; padding-left: 0; }
+.prose-mono ul.eb-checklist, .eb-checklist { list-style: none; padding-left: 0; }
 .eb-checklist li {
   border-top: 1px solid var(--border);
   padding: 0.75rem 0 0.75rem 1.75rem;
@@ -1291,3 +1291,70 @@ a { color: inherit; }
 }
 .eb-gloss dd:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .eb-gloss dd strong { color: var(--foreground); font-weight: 600; }
+
+/* ---- concept blocks + 2x2 matrix (design/estimator post) ---- */
+.eb-concept {
+  margin: 1.9rem 0;
+  padding: 0 0 0 1.1rem;
+  border-left: 2px solid var(--border);
+  font-family: var(--font-sans);
+}
+.eb-concept h3 {
+  font-family: var(--font-sans);
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+  margin: 0 0 0.6rem;
+}
+.eb-concept p {
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--muted);
+  margin: 0 0 0.55rem;
+}
+.eb-concept p:last-child { margin-bottom: 0; }
+.eb-concept strong { color: var(--foreground); font-weight: 600; }
+.eb-lbl {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.8;
+  margin-right: 0.5rem;
+}
+.eb-concept .eb-trap { color: var(--foreground); }
+.eb-concept .eb-trap .eb-lbl { color: var(--eb-accent); opacity: 1; }
+
+.eb-matrix { margin: 2rem 0 2.5rem; }
+.eb-matrix table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  table-layout: fixed;
+}
+.eb-matrix th, .eb-matrix td {
+  border: 1px solid var(--border);
+  padding: 0.75rem 0.8rem;
+  vertical-align: top;
+  line-height: 1.5;
+  text-align: left;
+}
+.eb-matrix thead th, .eb-matrix tbody th {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.eb-matrix thead th:first-child { border: none; background: transparent; }
+.eb-matrix td strong { color: var(--foreground); display: block; margin-bottom: 0.2rem; }
+.eb-matrix td em { font-style: normal; color: var(--muted); opacity: 0.8; font-size: 12px; }
+.eb-matrix .eb-cell-key { background: var(--eb-tint); }
+.eb-matrix figcaption {
+  font-size: 12.5px; line-height: 1.55; color: var(--muted);
+  margin-top: 0.75rem; font-style: italic;
+}
