@@ -40,32 +40,6 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
-    slug: "tableware",
-    name: "Tableware",
-    intro: "Japanese ceramics, piece by piece.",
-    card: "A slow collection of Japanese porcelain \u2014 form, texture, and everyday use.",
-    posts: [
-      {
-        slug: "pieces-i-keep-reaching-for",
-        title: "Pieces I Keep Reaching For",
-        description:
-          "Notes on form, texture, and everyday use.",
-      },
-      {
-        slug: "why-i-love-japanese-tableware",
-        title: "Why I Love Japanese Tableware",
-        description:
-          "On utility, craftsmanship, and quiet beauty.",
-      },
-      {
-        slug: "collecting-slowly",
-        title: "Collecting Slowly",
-        description:
-          "Thoughts on collecting with taste and patience.",
-      },
-    ],
-  },
-  {
     slug: "traveling",
     name: "Traveling",
     intro: "Places I\u2019ve been, and what I took home.",

@@ -68,10 +68,9 @@ function HomeContent({ views }: { views: number }) {
 
         <div className="mt-10 space-y-6 font-serif text-[17px] leading-[1.75] text-[var(--foreground)]">
           <p>
-            Outside of work, you&rsquo;ll find me traveling, gardening, and
-            collecting Japanese tableware (日器) — or on the move: tennis,
-            badminton, marathon training, and getting regularly humbled at
-            CrossFit. I also study companies and industries through the lens of
+            Outside of work, you&rsquo;ll find me traveling and gardening — or
+            on the move: tennis, badminton, marathon training, and getting
+            regularly humbled at CrossFit. I also study companies and industries through the lens of
             value investing — a habit that keeps me sharp and attuned to the
             markets.
           </p>
