@@ -108,6 +108,21 @@ export const BUCKETS: Bucket[] = [
     ],
   },
   {
+    slug: "agents",
+    name: "Agents",
+    card: "Evaluating agents on real, messy business workflows.",
+    intro: "On evaluating agents in real business workflows.",
+    posts: [
+      {
+        slug: "evaluating-agents-in-the-enterprise",
+        date: "2026-11-24",
+        title: "Evaluating Agents in the Enterprise",
+        description:
+          "General-purpose agents are outrunning custom scaffolding. Four lessons on where the value goes next, and what they mean for a data scientist.",
+      },
+    ],
+  },
+  {
     slug: "career",
     name: "Career",
     card: "Reflections on building a data science career.",
