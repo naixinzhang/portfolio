@@ -1,0 +1,162 @@
+---
+title: "Evaluating Agents in the Enterprise"
+description: "General-purpose agents are outrunning custom scaffolding. Four lessons on where the value goes next, and what they mean for a data scientist."
+date: 2026-11-24
+draft: false
+---
+
+<aside class="eb-tldr">
+  <p class="eb-tldr-label">TL;DR</p>
+  <p><strong>In one line:</strong> General-purpose agents such as Claude Code and Codex have improved so quickly that custom scaffolding often struggles to beat them. The value is moving to context, controlled environments and honest measurement.</p>
+</aside>
+
+<p>After five years of work, I took a six-week sabbatical. I am deeply grateful for it. A chance to stop, reset and come back with fresh eyes is rare, and I don’t take it for granted.</p>
+
+<p>When I returned, the frontier had moved further than I expected. I have spent my first weeks back evaluating agents on complex enterprise workflows in specialized domains such as finance and accounting, down to sub-disciplines like revenue accounting. Beyond the agents I evaluated myself, I read through work from across our broader team, including the machine learning side. What follows are the patterns that kept recurring.</p>
+
+<p>They fall into two parts: what evaluating enterprise agents taught me, and what it means for my own career.</p>
+
+<h2>Part I: Evaluating agents in the enterprise</h2>
+
+<h3>1. Value is migrating from scaffolding to context</h3>
+
+<p>It is tempting to credit the recent leap to better foundation models alone. What struck me more was the progress of <strong>general-purpose agents</strong>: products like Claude Code and Codex, which pair a frontier model with a mature harness for using tools, managing context and delegating to sub-agents.</p>
+
+<p>Across multiple use cases, the same pattern emerged. Give one of these agents access to the right enterprise data (team conversations, documents, databases and data pipelines), and it can answer complex domain questions from a single, direct prompt with remarkable quality. We did not need to add scaffolding of our own.</p>
+
+<p>Bespoke multi-agent systems, by contrast, often delivered surprisingly little incremental value once rigorously measured. A custom harness has to keep pace with a general-purpose one that improves with every release, and that is a hard race for a single team to win.</p>
+
+<figure class="eb-versus">
+  <div class="eb-versus-row" style="align-items:stretch">
+    <div class="eb-versus-card">
+      <p class="eb-versus-title" style="margin-bottom:0.75rem">Custom scaffolding</p>
+      <p class="eb-versus-k" style="margin:0">what you build</p>
+      <p class="eb-versus-v" style="margin:0 0 0.6rem">orchestration, sub-agents, verification layers</p>
+      <p class="eb-versus-k" style="margin:0">who keeps it current</p>
+      <p class="eb-versus-v" style="margin:0 0 0.6rem">your team</p>
+    </div>
+    <div class="eb-versus-vs" style="align-self:center">vs</div>
+    <div class="eb-versus-card">
+      <p class="eb-versus-title" style="margin-bottom:0.75rem">General-purpose agent</p>
+      <p class="eb-versus-k" style="margin:0">what you build</p>
+      <p class="eb-versus-v" style="margin:0 0 0.6rem">context, permissions, evaluation</p>
+      <p class="eb-versus-k" style="margin:0">who keeps it current</p>
+      <p class="eb-versus-v" style="margin:0 0 0.6rem">the vendor, every release</p>
+    </div>
+  </div>
+  <figcaption class="eb-caption">The choice is about which layer deserves your team’s effort.</figcaption>
+</figure>
+
+<p>The pattern held beyond answer quality. In the use cases I examined, we also looked at consistency and groundedness, and the general-purpose agents were strong there too. They hallucinated far less than I expected, and were notably good at saying they did not know rather than inventing an answer. This part is a qualitative observation, not a measured result, but it was consistent enough to change my priors.</p>
+
+<p>None of this is an argument against agent engineering. Claude Code and Codex are themselves impressive feats of it. The question is which layer is still worth building yourself, and I would put the effort into three things:</p>
+
+<ul>
+  <li><strong>Context:</strong> what the agent can see.</li>
+  <li><strong>Permissions:</strong> what it is allowed to do.</li>
+  <li><strong>Verification:</strong> how we know it is right.</li>
+</ul>
+
+<p>With every release, some of yesterday’s scaffolding becomes dead weight. A discipline worth practicing is to ask regularly which components you would still build if you started today.</p>
+
+<h4 style="margin:2.25rem 0 0.6rem">A caveat: an evaluation is only as hard as its dataset</h4>
+
+<p>Evaluation sets are usually built from historical records such as tickets, notes and past decisions, and those records are biased toward the easy cases. The genuinely complex cases are the ones whose context was never written down: resolved in a meeting, carried in someone’s head, or scattered across threads. The result is a dangerous illusion, where the agent scores well because the test is easy.</p>
+
+<p>So before concluding that a simple setup is good enough, ask whether the dataset represents the hard tail of real work. Building evaluation data that captures that complexity is one of the hardest and most important parts of the job.</p>
+
+<h3>2. The environment is the evaluation</h3>
+
+<p>To measure what each component of an agent actually contributes, you need controlled ablations: identical tasks, different system variants. That only works in a clean, well-governed environment. Without one, results are quietly contaminated:</p>
+
+<ul>
+  <li><strong>Leakage:</strong> the agent reaches the answer key, or a near-equivalent document.</li>
+  <li><strong>Confounding:</strong> variants differ in permissions rather than capability.</li>
+  <li><strong>Carryover:</strong> state leaks from one run into the next.</li>
+</ul>
+
+<p>Much of rigorous evaluation is therefore environment engineering: access control, sandboxing, and precise decisions about what the agent can and cannot observe. I suspect the same problem is driving today’s investment in reinforcement learning environments. Whether you are training an agent or evaluating one, you need a faithful, controllable world for it to act in.</p>
+
+<p class="eb-pullquote" style="margin:2rem 0">The environment can look like a preliminary to the real work. Often, it is the real work.</p>
+
+<p>I am only beginning to explore the tooling here: sandboxing platforms such as Modal, and evaluation frameworks such as Harbor. It is the area I most want to go deeper on next.</p>
+
+<h3>3. Business context is the scarcest input</h3>
+
+<p>The most surprising lesson was where my time went. Most of it was spent understanding the business, rather than on models or metrics. Real enterprise processes span multiple teams: one owns the first step, another the second, a third the reconciliation. No single person holds a complete picture of how the whole thing works.</p>
+
+<p>So the core work became connecting the dots: reconstructing the end-to-end process, synthesizing it into a coherent view, and turning that into evaluation criteria that reflect what “correct” actually means for the business. You cannot evaluate an agent on a workflow nobody has fully articulated. As agents absorb more of the technical work, communication and synthesis matter more.</p>
+
+<h3>4. The overlooked bottleneck: most agents are not ready to be evaluated</h3>
+
+<p>The industry’s energy is focused on building agents faster. Far less goes into knowing whether they work. The typical lifecycle looks like this:</p>
+
+<figure class="eb-order">
+  <ol class="eb-order-row" style="padding-left:0;margin-bottom:0">
+    <li style="margin-bottom:0"><span class="eb-order-name">Build</span><span class="eb-order-note">a team ships an agent</span></li>
+    <li style="margin-bottom:0"><span class="eb-order-name">Demo</span><span class="eb-order-note">stakeholders see it work</span></li>
+    <li style="margin-bottom:0"><span class="eb-order-name">Try</span><span class="eb-order-note">a handful of cases</span></li>
+    <li style="margin-bottom:0"><span class="eb-order-name">Verdict</span><span class="eb-order-note">a vibe check</span></li>
+  </ol>
+  <p class="eb-order-anti" style="margin:0.75rem 0 0"><span class="eb-order-x">✕</span>Nobody can say with confidence whether it works, how often it fails, or why.</p>
+</figure>
+
+<p>The root cause is a gap between two groups. The people who build the agent are rarely the business stakeholders who own the process. Builders often ship before fully understanding the business logic, and without a rigorous evaluation of their own. Stakeholders, meanwhile, lack the time or the tools to test systematically.</p>
+
+<p>So when I am asked to evaluate an agent, the first job is often to make it evaluable:</p>
+
+<ol>
+  <li><strong>Start with context.</strong> Understand the process before judging the output.</li>
+  <li><strong>Use the agent.</strong> Run it on real work and inspect the choices it makes.</li>
+  <li><strong>Bucket the errors.</strong> Group its failures to see what is actually breaking.</li>
+</ol>
+
+<p>That routinely surfaces foundational issues: data access that was never configured correctly, or a system prompt that never precisely defines what each check should do. Until those are fixed, evaluation has not really begun.</p>
+
+<p>This is the least glamorous part of the work, and I believe the most undervalued.</p>
+
+<p class="eb-pullquote" style="margin:2rem 0">An agent that has never been rigorously evaluated is a demo, not a product.</p>
+
+<p>Closing that gap is where much of the real value in enterprise AI is waiting.</p>
+
+<h2>Part II: Rethinking my role</h2>
+
+<h3>1. The ground moves every few months</h3>
+
+<p>Coming back after six weeks made the pace of change obvious to me, but I am far from alone in feeling it. Around me, it is a widely shared experience: the work, and the workflow behind it, shifts dramatically every few months.</p>
+
+<p>That raises a harder question than which tool to learn next. If the work keeps changing, what is the role?</p>
+
+<h3>2. The old archetypes no longer describe the work</h3>
+
+<p>Data science roles have traditionally been defined by what you work on. Set against the two classic archetypes, what I do now looks like something else:</p>
+
+<figure class="eb-ntable">
+  <table>
+    <thead><tr><th>Role</th><th>Works on</th><th style="text-align:left">Core question</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Product data scientist</strong></td><td>Product features and experiments</td><td style="text-align:left;font-weight:400">Did this feature help?</td></tr>
+      <tr><td><strong>Modeling data scientist</strong></td><td>Models and systems, such as recommenders</td><td style="text-align:left;font-weight:400">Does this model predict better?</td></tr>
+      <tr><td><strong>What I do now</strong></td><td>Agent building, enterprise case evaluations and data generation pipelines</td><td style="text-align:left;font-weight:400">Can the business trust this agent?</td></tr>
+    </tbody>
+  </table>
+</figure>
+
+<p>My title is still Data Scientist, but the work is closer to ML engineering: building agents, evaluating them on real enterprise cases, and building the pipelines that generate the data behind both. Then comes one more step, translating the results into decisions a business can act on.</p>
+
+<h3>3. What carries over</h3>
+
+<p>When a workflow lasts only a few months, skills tied to it lose value just as quickly. So I have asked myself what my edge is, and which parts of it survive the next shift. I see two, and both come from data science:</p>
+
+<ul>
+  <li><strong>Communication and storytelling.</strong> Understanding a fragmented business, synthesizing it, and explaining clearly what an agent does well and where it fails. This is what makes an evaluation meaningful.</li>
+  <li><strong>Rigor.</strong> Designing controlled comparisons, running repeated trials to account for non-determinism, reasoning about noise, and separating real gains from luck. This is what makes an evaluation trustworthy, and in a field of vibe checks it is rare.</li>
+</ul>
+
+<p class="eb-pullquote" style="margin:2rem 0">The tools and the title may keep changing. Understanding the problem and measuring it honestly will not go out of date.</p>
+
+<h2>Closing</h2>
+
+<p>Agents improved dramatically while I was away, and that changes where effort should go: less into elaborate machinery of our own, and more into context, clean measurement, and the human work of understanding what the business actually needs.</p>
+
+<p>I am grateful for the chance to reset, and just as grateful to come back at a moment like this. I plan to write more often. There is a great deal to figure out.</p>
